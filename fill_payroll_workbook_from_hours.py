@@ -753,10 +753,12 @@ def build_employee_rows_from_roster(
 
     insertions: list[tuple[int, int]] = []
     company_slots: dict[str, list[int]] = {}
+    has_overflow = False
     for company, base_slots in COMPANY_ROW_SLOTS.items():
         slots = [map_row_with_insertions(row_number, insertions) for row_number in base_slots]
         overflow = len(grouped.get(company, [])) - len(slots)
         if overflow > 0:
+            has_overflow = True
             insert_at = slots[-1] + 1
             template_row = get_or_create_row(sheet_data, slots[-1])
             shift_rows_in_sheet(sheet_root, insert_at, overflow)
@@ -766,7 +768,9 @@ def build_employee_rows_from_roster(
             slots.extend(insert_at + index for index in range(overflow))
         company_slots[company] = slots
 
-    reimbursement_row = refresh_company_summary_formulas(sheet_data, company_slots)
+    reimbursement_row = 101
+    if has_overflow:
+        reimbursement_row = refresh_company_summary_formulas(sheet_data, company_slots)
 
     employee_rows: list[dict[str, Any]] = []
     fill_columns = ["H", "I", "J", "K", "M", "O"]
@@ -776,10 +780,9 @@ def build_employee_rows_from_roster(
 
         for idx, row_number in enumerate(slots):
             row_elem = get_or_create_row(sheet_data, row_number)
-            set_inline_string_cell(row_elem, row_number, "A", "")
-            set_employee_row_formulas(sheet_data, row_number)
             if idx < len(company_entries):
                 entry = company_entries[idx]
+                set_employee_row_formulas(sheet_data, row_number)
                 set_inline_string_cell(row_elem, row_number, "B", entry["name"])
                 set_numeric_cell(row_elem, row_number, "C", entry["rate"])
                 employee_rows.append(
