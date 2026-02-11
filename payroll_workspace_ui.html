@@ -650,7 +650,7 @@
     .print-page {
       font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
       color: #343434;
-      font-size: 14.5px;
+      font-size: 14px;
       background: #ffffff;
       padding: 6px 6px 8px;
       page-break-after: always;
@@ -707,7 +707,7 @@
     .print-main-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 14.5px;
+      font-size: 14px;
       line-height: 1.15;
       margin-top: 2px;
       table-layout: fixed;
@@ -716,7 +716,7 @@
     .print-main-table th {
       background: #9fb8db;
       color: #ffffff;
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 700;
       text-align: center;
       padding: 4px 5px;
@@ -786,7 +786,7 @@
     .print-hours-worked {
       margin: 6px 0 2px;
       text-align: right;
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 700;
       color: #343434;
     }
@@ -795,7 +795,7 @@
     .print-dept-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 14.5px;
+      font-size: 14px;
       margin-top: 4px;
       line-height: 1.1;
     }
@@ -840,7 +840,7 @@
       display: flex;
       justify-content: space-around;
       align-items: center;
-      font-size: 14px;
+      font-size: 13.5px;
       color: #3c3c3c;
     }
 
@@ -1100,6 +1100,10 @@
     const detailReferenceLocks = new Map();
     let activeSortField = "";
     let activeSortDirection = "asc";
+    let autoSaveTimer = null;
+    let autoSaveInFlight = false;
+    let suppressAutoSave = false;
+    let autoSaveDirty = false;
 
     function pad2(value) {
       return String(value).padStart(2, "0");
@@ -1926,6 +1930,57 @@
       document.title = "Batch_Report_Sea_and_Air(" + formatIsoDate(nycToday) + ")";
     }
 
+    async function resetWeekTemplateFromRoster() {
+      const loadedRoster = await loadEmployeesFromRoster({ silent: true });
+      if (loadedRoster) {
+        periodNoteInput.value = "";
+        return;
+      }
+      employees.forEach((employee) => {
+        employee.selected = false;
+        employee.days = DAY_NAMES.map(() => newDayEntry());
+        employee.commissionsByCompany = [0, 0, 0];
+      });
+      periodNoteInput.value = "";
+      renderTable();
+    }
+
+    async function loadOrClearForSelectedWeekStart() {
+      const targetWeekStart = formatIsoDate(weekStart);
+      const periods = await loadSavedPeriods();
+      const matchingPeriod = periods.find(
+        (period) => String(period.week_start || "").trim() === targetWeekStart
+      );
+      if (matchingPeriod) {
+        suppressAutoSave = true;
+        const loaded = await loadSavedWeekById(matchingPeriod.id, true);
+        suppressAutoSave = false;
+        if (loaded) {
+          autoSaveDirty = false;
+          const weekEnd = addDays(weekStart, 6);
+          setActionHint(
+            "Loaded saved week " + formatUsShortDate(weekStart) + " - " + formatUsShortDate(weekEnd) + ".",
+            false
+          );
+          return true;
+        }
+      }
+
+      suppressAutoSave = true;
+      detailReferenceLocks.clear();
+      resetBulkReferenceState();
+      await resetWeekTemplateFromRoster();
+      suppressAutoSave = false;
+      autoSaveDirty = false;
+      historySelect.value = "";
+      const weekEnd = addDays(weekStart, 6);
+      setActionHint(
+        "No saved data for " + formatUsShortDate(weekStart) + " - " + formatUsShortDate(weekEnd) + ". Cleared template.",
+        false
+      );
+      return false;
+    }
+
     function setActionHint(text, isError) {
       actionHint.textContent = text || "";
       actionHint.style.color = isError ? "#b42318" : "#36506b";
@@ -2194,6 +2249,7 @@
       employees = employees.concat(clones);
       renderTable();
       setActionHint("Duplicated " + chosen.length + " employee row(s).", false);
+      queueAutoSave();
     }
 
     function removeSelected() {
@@ -2210,6 +2266,7 @@
       }
       renderTable();
       setActionHint("Removed " + removed + " employee row(s).", false);
+      queueAutoSave();
     }
 
     async function hideSelectedFromRoster() {
@@ -2268,6 +2325,7 @@
           "Hidden " + names.length + " employee(s). They will not show for new week selection.",
           false
         );
+        queueAutoSave();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         setActionHint("Hide failed: " + message, true);
@@ -2358,6 +2416,7 @@
         detailParts.push("note");
       }
       setActionHint("Applied " + detailParts.join(", ") + " to " + chosen.length + " selected employee(s).", false);
+      queueAutoSave();
     }
 
     function resetBulkReferenceState() {
@@ -3074,9 +3133,13 @@
       }
     }
 
-    async function saveCurrentWeek() {
+    async function saveCurrentWeek(options) {
+      const opts = options && typeof options === "object" ? options : {};
+      const silent = !!opts.silent;
       const state = workspaceStatePayload();
-      setActionHint("Saving payroll week...", false);
+      if (!silent) {
+        setActionHint("Saving payroll week...", false);
+      }
       try {
         const response = await fetch("/api/workspace/save", {
           method: "POST",
@@ -3105,13 +3168,39 @@
         }
         const payload = await response.json();
         await loadSavedPeriods(payload.period_id);
-        setActionHint("Saved payroll week.", false);
+        autoSaveDirty = false;
+        if (!silent) {
+          setActionHint("Saved payroll week.", false);
+        }
         return true;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         setActionHint("Save failed: " + message, true);
         return false;
       }
+    }
+
+    function queueAutoSave() {
+      if (suppressAutoSave) {
+        return;
+      }
+      autoSaveDirty = true;
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+      }
+      autoSaveTimer = setTimeout(async () => {
+        autoSaveTimer = null;
+        if (suppressAutoSave || autoSaveInFlight) {
+          return;
+        }
+        autoSaveInFlight = true;
+        const ok = await saveCurrentWeek({ silent: true });
+        autoSaveInFlight = false;
+        if (ok) {
+          const stamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          setActionHint("Autosaved " + stamp + ".", false);
+        }
+      }, 1800);
     }
 
     async function logoutWorkspace() {
@@ -3193,7 +3282,9 @@
       }
     }
 
-    async function loadEmployeesFromRoster() {
+    async function loadEmployeesFromRoster(options) {
+      const opts = options && typeof options === "object" ? options : {};
+      const silent = !!opts.silent;
       try {
         let response = await fetch("/api/workspace/employees");
         if (response.status === 401) {
@@ -3236,7 +3327,9 @@
           })
         );
         renderTable();
-        setActionHint("Loaded " + rows.length + " employees from roster/template.", false);
+        if (!silent) {
+          setActionHint("Loaded " + rows.length + " employees from roster/template.", false);
+        }
         return true;
       } catch {
         return false;
@@ -3289,6 +3382,7 @@
           if (detailCompany) {
             detailCompany.textContent = "Payroll Company: " + employee.payrollCompany;
           }
+          queueAutoSave();
         }
       }
     });
@@ -3319,6 +3413,7 @@
           detailHeader.textContent = employee.name || "Employee";
         }
         updateAllSummaries();
+        queueAutoSave();
         return;
       }
 
@@ -3330,6 +3425,7 @@
         }
         employee.rate = safeNumber(target.value);
         updateAllSummaries();
+        queueAutoSave();
         return;
       }
 
@@ -3342,6 +3438,7 @@
         employee.commissionsByCompany = commissionTotalsByCompany(employee);
         updateEmployeeSummaryCells(employeeId);
         updateAllSummaries();
+        queueAutoSave();
         return;
       }
 
@@ -3353,6 +3450,7 @@
           applyTimeAutofill(employee, dayIndex, companyIndex, "hour");
           updateEmployeeSummaryCells(employeeId);
           updateAllSummaries();
+          queueAutoSave();
         }
         return;
       }
@@ -3369,6 +3467,7 @@
           applyTimeAutofill(employee, dayIndex, companyIndex, "company-in-time");
           updateEmployeeSummaryCells(employeeId);
           updateAllSummaries();
+          queueAutoSave();
         }
         return;
       }
@@ -3385,6 +3484,7 @@
           applyTimeAutofill(employee, dayIndex, companyIndex, "company-out-time");
           updateEmployeeSummaryCells(employeeId);
           updateAllSummaries();
+          queueAutoSave();
         }
         return;
       }
@@ -3394,6 +3494,7 @@
         if (dayIndex >= 0 && dayIndex < 7) {
           employee.days[dayIndex].note = String(target.value || "");
           resizeNoteArea(target);
+          queueAutoSave();
         }
       }
     });
@@ -3471,10 +3572,17 @@
       setSelectionForAll(false);
     });
 
-    weekStartInput.addEventListener("change", () => {
+    weekStartInput.addEventListener("change", async () => {
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = null;
+      }
+      if (autoSaveDirty && !autoSaveInFlight) {
+        await saveCurrentWeek({ silent: true });
+      }
       const picked = parseIsoDate(weekStartInput.value) || getNYCToday();
       setWeekStart(picked, true);
-      renderTable();
+      await loadOrClearForSelectedWeekStart();
     });
 
     manageToggleBtn.addEventListener("click", () => {
@@ -3497,6 +3605,7 @@
       employees.push(createEmptyEmployee());
       renderTable();
       setActionHint("Added new employee row.", false);
+      queueAutoSave();
     });
     duplicateBtn.addEventListener("click", duplicateSelected);
     hideBtn.addEventListener("click", hideSelectedFromRoster);
