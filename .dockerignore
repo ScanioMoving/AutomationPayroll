@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git/
+.dist/
+dist/
+build/
+*.app
+*.zip
+.payroll_app_data/
+.pyinstaller/

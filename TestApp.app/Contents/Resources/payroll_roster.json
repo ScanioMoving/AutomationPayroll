@@ -1,0 +1,262 @@
+{
+  "employees": [
+    {
+      "name": "Adriano Rodallega",
+      "home_company": "scanio_moving",
+      "rate": 18.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Ang F Sherpa",
+      "home_company": "scanio_moving",
+      "rate": 16.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Ang Sona Sherpa",
+      "home_company": "sea_and_air_intl",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Boris Brin",
+      "home_company": "scanio_moving",
+      "rate": 20.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Chhiring L Gurung",
+      "home_company": "flat_price",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Christian F Baena",
+      "home_company": "scanio_moving",
+      "rate": 19.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Christian M Font",
+      "home_company": "scanio_moving",
+      "rate": 19.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Corio Jamal Vinson",
+      "home_company": "scanio_moving",
+      "rate": 18.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Daniel Richiez",
+      "home_company": "scanio_moving",
+      "rate": 19.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Daniil Eremenkov",
+      "home_company": "scanio_moving",
+      "rate": 19.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Danylo Chernysh",
+      "home_company": "scanio_moving",
+      "rate": 18.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "David E Aubert",
+      "home_company": "scanio_storage",
+      "rate": 17.0,
+      "burden_multiplier": 1.24
+    },
+    {
+      "name": "David Torres",
+      "home_company": "scanio_moving",
+      "rate": 18.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Dorgee Namjom",
+      "home_company": "flat_price",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Dwayne K Guerra",
+      "home_company": "flat_price",
+      "rate": 21.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Efrain Gongora",
+      "home_company": "scanio_moving",
+      "rate": 19.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Farukh Baymatov",
+      "home_company": "scanio_moving",
+      "rate": 20.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Fnu Rigjin Dawa",
+      "home_company": "sea_and_air_intl",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Hishey L Lama",
+      "home_company": "sea_and_air_intl",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Jimmy K Crawford",
+      "home_company": "scanio_moving",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "John Johnson",
+      "home_company": "flat_price",
+      "rate": 19.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "John Velez",
+      "home_company": "scanio_moving",
+      "rate": 20.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Juan Francisco Cevallos Garzon",
+      "home_company": "flat_price",
+      "rate": 20.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Kye DeVonte White",
+      "home_company": "sea_and_air_intl",
+      "rate": 19.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Lakpa S Sherpa",
+      "home_company": "sea_and_air_intl",
+      "rate": 18.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Maksim Ivashchanka",
+      "home_company": "scanio_moving",
+      "rate": 19.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Maksym Lelytsia",
+      "home_company": "scanio_moving",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Mamadou Yamar Diop",
+      "home_company": "scanio_storage",
+      "rate": 18.0,
+      "burden_multiplier": 1.24
+    },
+    {
+      "name": "Mario Gomez -2",
+      "home_company": "scanio_storage",
+      "rate": 15.0,
+      "burden_multiplier": 1.24
+    },
+    {
+      "name": "Mario J Gomez",
+      "home_company": "sea_and_air_intl",
+      "rate": 20.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Nurba T Gurung",
+      "home_company": "flat_price",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Oleksii Danylenko",
+      "home_company": "sea_and_air_intl",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Phuri Sherpa",
+      "home_company": "flat_price",
+      "rate": 18.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Reginald Debson",
+      "home_company": "scanio_storage",
+      "rate": 21.0,
+      "burden_multiplier": 1.24
+    },
+    {
+      "name": "Ron Cohen",
+      "home_company": "scanio_storage",
+      "rate": 16.0,
+      "burden_multiplier": 1.24
+    },
+    {
+      "name": "Sandesh Purja",
+      "home_company": "scanio_moving",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Sonam Sherpa",
+      "home_company": "scanio_moving",
+      "rate": 16.5,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Sonam T Lama",
+      "home_company": "sea_and_air_intl",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Surya Hamal",
+      "home_company": "scanio_moving",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Terry R Maynard",
+      "home_company": "scanio_moving",
+      "rate": 18.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Tyshawn Eugene Allen",
+      "home_company": "flat_price",
+      "rate": 20.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Vincent Vails",
+      "home_company": "sea_and_air_intl",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    },
+    {
+      "name": "Vladyslav Kandybiei",
+      "home_company": "sea_and_air_intl",
+      "rate": 17.0,
+      "burden_multiplier": 1.18
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+APP_CONTENTS="$(cd "$(dirname "$0")/.." && pwd)"
+PAYLOAD_DIR="$APP_CONTENTS/Resources/app"
+
+PYTHON_BIN=""
+for CANDIDATE in /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3; do
+  if [ -x "$CANDIDATE" ]; then
+    PYTHON_BIN="$CANDIDATE"
+    break
+  fi
+done
+
+if [ -z "$PYTHON_BIN" ]; then
+  osascript -e 'display alert "Python 3 not found" message "Install Python 3 to run PayrollConverter.app." as critical'
+  exit 1
+fi
+
+cd "$PAYLOAD_DIR"
+exec "$PYTHON_BIN" payroll_mac_app.py

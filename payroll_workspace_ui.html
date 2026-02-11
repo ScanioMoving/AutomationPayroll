@@ -1,0 +1,3485 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Payroll Weekly Sheet</title>
+  <style>
+    :root {
+      --bg: #e9f0f7;
+      --panel: #ffffff;
+      --line: #b9c9da;
+      --text: #0d1f31;
+      --muted: #4d6073;
+      --brand: #0f766e;
+      --brand-dark: #115e59;
+      --warn: #9a6a1c;
+      --danger: #b42318;
+      --header: #d9e6f4;
+      --soft: #edf4fb;
+      --alt-col: #e9f2fc;
+      --total-col-head: #2b4864;
+      --total-col-body: #cfe0f1;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .app {
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr auto;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 10px;
+    }
+
+    .topbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 23px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .top-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .top-links select {
+      width: 210px;
+      min-width: 170px;
+      padding: 7px 8px;
+    }
+
+    .chip {
+      border: 1px solid #a8bfd6;
+      background: #eaf3ff;
+      border-radius: 4px;
+      padding: 6px 9px;
+      font-size: 12px;
+      color: #193550;
+      white-space: nowrap;
+    }
+
+    .link-btn {
+      display: inline-block;
+      border: 1px solid #849db6;
+      background: #edf5ff;
+      color: #14314c;
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .period-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 190px 240px 300px minmax(220px, 1fr);
+      align-items: end;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    input[type="date"],
+    input[type="text"],
+    input[type="number"],
+    input[type="time"],
+    select {
+      width: 100%;
+      border: 1px solid #9fb4c9;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 13px;
+      color: var(--text);
+      background: #f6fbff;
+    }
+
+    .period-chip {
+      border: 1px solid #a6bdd3;
+      border-radius: 4px;
+      background: #edf5ff;
+      padding: 8px 10px;
+      font-size: 13px;
+      color: #1d3851;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+    }
+
+    .hint {
+      margin-top: 6px;
+      color: var(--warn);
+      font-size: 12px;
+      min-height: 16px;
+    }
+
+    .bulk-grid {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 160px 185px 110px 110px 110px 150px minmax(220px, 1fr) auto;
+      align-items: end;
+    }
+
+    .bulk-grid .mode-field {
+      max-width: 160px;
+    }
+
+    .bulk-grid .note-field {
+      min-width: 200px;
+    }
+
+    #bulkApplyBtn {
+      white-space: nowrap;
+      align-self: end;
+    }
+
+    .bulk-title {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: #234057;
+    }
+
+    .bulk-select-zone {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+      grid-template-columns: minmax(260px, 440px) minmax(320px, 1fr);
+      align-items: start;
+    }
+
+    .bulk-search-box {
+      position: relative;
+    }
+
+    .bulk-search-results {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      z-index: 10;
+      border: 1px solid #9fb4c9;
+      border-radius: 4px;
+      background: #ffffff;
+      box-shadow: 0 10px 18px rgba(16, 35, 56, 0.16);
+      max-height: 260px;
+      overflow: auto;
+    }
+
+    .bulk-search-item {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid #d7e1eb;
+      border-radius: 0;
+      background: #ffffff;
+      color: #14314c;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-align: left;
+      font-weight: 500;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+
+    .bulk-search-item:last-child {
+      border-bottom: 0;
+    }
+
+    .bulk-search-item:hover {
+      background: #edf5ff;
+    }
+
+    .bulk-search-item.selected {
+      background: #e8f6f3;
+      color: #0f5b53;
+    }
+
+    .bulk-search-empty {
+      padding: 8px 10px;
+      color: #536376;
+      font-size: 12px;
+      background: #f7fbff;
+    }
+
+    .bulk-selected-box {
+      border: 1px solid #b7cbe0;
+      border-radius: 4px;
+      background: #eef5fd;
+      padding: 8px;
+    }
+
+    .bulk-selected-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+      color: #1d3851;
+      font-size: 12px;
+    }
+
+    .bulk-selected-count {
+      border: 1px solid #9fb4c9;
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: #ffffff;
+      font-size: 11px;
+      color: #2a4259;
+      font-weight: 700;
+    }
+
+    .bulk-selected-list {
+      min-height: 36px;
+      border: 1px solid #c9d9e8;
+      border-radius: 4px;
+      background: #ffffff;
+      padding: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-content: flex-start;
+    }
+
+    .bulk-selected-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #9fb7cc;
+      border-radius: 999px;
+      background: #f3f9ff;
+      color: #1f3a55;
+      font-size: 12px;
+      padding: 4px 8px;
+      max-width: 260px;
+    }
+
+    .bulk-selected-chip-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bulk-selected-chip-remove {
+      border: 0;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      padding: 0;
+      line-height: 1;
+      font-size: 12px;
+      font-weight: 700;
+      background: #d9e9f8;
+      color: #27425e;
+      cursor: pointer;
+    }
+
+    .bulk-selected-empty {
+      color: #5f7388;
+      font-size: 12px;
+      padding: 4px 2px;
+    }
+
+    button {
+      border: 1px solid var(--brand);
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--brand);
+      color: #ffffff;
+    }
+
+    button.secondary {
+      background: #ffffff;
+      color: var(--brand-dark);
+      border-color: #95b7b2;
+    }
+
+    button.warning {
+      background: #fff8ed;
+      color: #995d0f;
+      border-color: #e6c495;
+    }
+
+    button.danger {
+      background: #fff2f2;
+      color: var(--danger);
+      border-color: #e8bbbb;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .toolbar select {
+      width: 220px;
+      min-width: 170px;
+      padding: 7px 8px;
+      font-size: 13px;
+    }
+
+    .toolbar-note {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    #actionHint {
+      margin-left: auto;
+      font-size: 12px;
+      color: #36506b;
+      min-height: 16px;
+    }
+
+    .sheet-wrap {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      overflow: auto;
+      min-height: 0;
+    }
+
+    .sheet-table {
+      width: 100%;
+      min-width: 2020px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .sheet-table th,
+    .sheet-table td {
+      border-right: 1px solid #cfdae5;
+      border-bottom: 1px solid #cfdae5;
+      padding: 6px;
+      text-align: left;
+      vertical-align: middle;
+      background: #ffffff;
+    }
+
+    .sheet-table th:last-child,
+    .sheet-table td:last-child {
+      border-right: 0;
+    }
+
+    .sheet-table th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: var(--header);
+      color: #17324b;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .sheet-table th.sortable-col {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .sheet-table th.sortable-col:hover {
+      background: #c4d7ea;
+    }
+
+    .sheet-table th.sortable-col.active {
+      background: #b7cde2;
+    }
+
+    .sort-indicator {
+      margin-left: 6px;
+      font-size: 11px;
+      color: #2b4a67;
+      font-weight: 700;
+    }
+
+    .sheet-table th:nth-child(even):not(.sticky-left-1):not(.sticky-left-2),
+    .sheet-table td:nth-child(even):not(.sticky-left-1):not(.sticky-left-2) {
+      background: var(--alt-col);
+    }
+
+    .sticky-left-1,
+    .sticky-left-2 {
+      position: sticky;
+      background: #ffffff;
+      z-index: 2;
+    }
+
+    .sticky-left-1 {
+      left: 0;
+    }
+
+    .sticky-left-2 {
+      left: 44px;
+    }
+
+    .sheet-table th.sticky-left-1,
+    .sheet-table th.sticky-left-2 {
+      z-index: 4;
+      background: var(--header);
+    }
+
+    .toggle-btn {
+      width: 30px;
+      min-width: 30px;
+      height: 30px;
+      padding: 0;
+      border-radius: 4px;
+      font-size: 15px;
+      line-height: 1;
+      background: #f5fbfa;
+      color: #1f5f57;
+      border-color: #a7cbc6;
+    }
+
+    .sheet-input {
+      width: 100%;
+      border: 1px solid #a6bacd;
+      border-radius: 4px;
+      padding: 7px 8px;
+      font-size: 13px;
+      color: var(--text);
+      background: transparent;
+    }
+
+    .sheet-input.num {
+      text-align: right;
+      max-width: 125px;
+    }
+
+    .sheet-input.readonly {
+      background: #e3edf8;
+      border-color: #a8bfd6;
+      font-weight: 700;
+    }
+
+    .sheet-input.locked,
+    .sheet-select.locked {
+      background: #e8eef5;
+      color: #334b62;
+    }
+
+    .sheet-table th.total-col {
+      background: var(--total-col-head) !important;
+      color: #ffffff !important;
+    }
+
+    .sheet-table td.total-col {
+      background: var(--total-col-body) !important;
+    }
+
+    .sheet-table td.total-col input {
+      background: #bed4e9;
+      border-color: #7e9fbe;
+      color: #0d2942;
+      font-weight: 800;
+    }
+
+    .detail-row td {
+      background: #f9fcff;
+      padding: 10px;
+    }
+
+    .detail-row.collapsed {
+      display: none;
+    }
+
+    .detail-card {
+      border: 1px solid #d9e4ef;
+      border-radius: 4px;
+      background: #ffffff;
+      overflow: auto;
+    }
+
+    .detail-head {
+      background: #f4f8fd;
+      border-bottom: 1px solid #dde7f2;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: #4f6074;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 2040px;
+    }
+
+    .detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      min-width: 2060px;
+    }
+
+    .detail-table th,
+    .detail-table td {
+      border: 1px solid #e6edf4;
+      padding: 5px;
+      text-align: left;
+      background: #ffffff;
+    }
+
+    .detail-table th {
+      background: #dde9f5;
+      color: #203b55;
+      position: static;
+      z-index: 1;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .detail-table th:nth-child(even),
+    .detail-table td:nth-child(even) {
+      background: var(--alt-col);
+    }
+
+    .detail-total {
+      font-weight: 700;
+      background: #9eb8d3;
+      border-color: #6d8bab;
+      color: #102a43;
+    }
+
+    .detail-table th.detail-total-col {
+      background: #46688a !important;
+      color: #ffffff !important;
+    }
+
+    .detail-table td.detail-total-col {
+      background: #bdd0e3 !important;
+    }
+
+    .comm-compact {
+      max-width: 88px;
+      padding: 5px 6px;
+      font-size: 12px;
+    }
+
+    .day-note-input {
+      width: 60%;
+      min-width: 120px;
+      max-width: 100%;
+      resize: vertical;
+      min-height: 28px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    .summary {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(140px, 1fr));
+      gap: 8px;
+    }
+
+    .stat {
+      border: 1px solid #bdcfe1;
+      border-radius: 4px;
+      background: #eaf2fb;
+      padding: 8px;
+    }
+
+    .stat .label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .stat .value {
+      margin-top: 2px;
+      font-size: 19px;
+      font-weight: 700;
+      color: #173451;
+    }
+
+    #printPages {
+      display: none;
+    }
+
+    @page {
+      size: portrait;
+      margin: 7mm;
+    }
+
+    .print-page {
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      color: #343434;
+      font-size: 14px;
+      background: #ffffff;
+      padding: 6px 6px 8px;
+      page-break-after: always;
+      break-after: page;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .print-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+
+    .report-card {
+      padding: 0;
+      page-break-inside: avoid;
+      background: #ffffff;
+    }
+
+    .print-title-line {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.05;
+      color: #313131;
+      font-weight: 600;
+    }
+
+    .print-title-blue {
+      color: #2f6fa8;
+      font-weight: 700;
+    }
+
+    .print-employee-name {
+      margin: 0 0 2px;
+      font-size: 58px;
+      line-height: 0.98;
+      color: #2f2f2f;
+      font-weight: 800;
+    }
+
+    .print-period-line {
+      margin: 0 0 6px;
+      font-size: 23px;
+      line-height: 1.06;
+      color: #3b3b3b;
+      font-weight: 600;
+    }
+
+    .print-period-blue {
+      color: #2f6fa8;
+      font-weight: 700;
+    }
+
+    .print-main-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14.5px;
+      line-height: 1.15;
+      margin-top: 2px;
+      table-layout: fixed;
+    }
+
+    .print-main-table th {
+      background: #9fb8db;
+      color: #ffffff;
+      font-size: 13.5px;
+      font-weight: 700;
+      text-align: center;
+      padding: 4px 5px;
+      border: 0;
+      text-transform: uppercase;
+    }
+
+    .print-main-table td {
+      padding: 5px 5px;
+      border: 0;
+      vertical-align: middle;
+    }
+
+    .print-main-table tbody tr:nth-child(odd) td {
+      background: #efefef;
+    }
+
+    .print-main-table tbody tr:nth-child(even) td {
+      background: #dcdcdc;
+    }
+
+    .print-main-table .day-col {
+      width: 36px;
+      text-align: right;
+      font-weight: 700;
+    }
+
+    .print-main-table .date-col {
+      width: 76px;
+      text-align: center;
+    }
+
+    .print-main-table .dept-col {
+      width: 108px;
+      text-transform: none;
+    }
+
+    .print-main-table .time-col {
+      width: 74px;
+      text-align: center;
+    }
+
+    .print-main-table .num-col {
+      text-align: center;
+      width: 50px;
+    }
+
+    .print-main-table .comm-col {
+      width: 74px;
+      text-align: center;
+    }
+
+    .print-main-table .notes-col,
+    .print-main-table .notes-col-head {
+      width: 320px;
+      text-align: left;
+      white-space: normal;
+      word-break: break-word;
+    }
+
+    .print-main-table .total-col-cell {
+      text-align: center;
+      width: 62px;
+      font-weight: 700;
+    }
+
+    .print-hours-worked {
+      margin: 6px 0 2px;
+      text-align: right;
+      font-size: 16.5px;
+      font-weight: 700;
+      color: #343434;
+    }
+
+    .print-summary-table,
+    .print-dept-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14.5px;
+      margin-top: 4px;
+      line-height: 1.1;
+    }
+
+    .print-summary-table td,
+    .print-summary-table th,
+    .print-dept-table td,
+    .print-dept-table th {
+      border: 0;
+      padding: 4px 5px;
+      text-align: left;
+    }
+
+    .print-summary-table th,
+    .print-dept-table th {
+      background: #9fb8db;
+      color: #ffffff;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .print-summary-table td {
+      background: #efefef;
+    }
+
+    .print-summary-table .label {
+      font-weight: 700;
+      width: 140px;
+    }
+
+    .print-dept-table td {
+      background: #efefef;
+    }
+
+    .print-ot-blue {
+      color: #3f74c4;
+      font-weight: 700;
+    }
+
+    .print-sign-row {
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      font-size: 13.5px;
+      color: #3c3c3c;
+    }
+
+    .print-sign-row span {
+      min-width: 240px;
+      text-align: center;
+    }
+
+    @media (max-width: 1460px) {
+      .period-grid {
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+      }
+      .bulk-grid {
+        grid-template-columns: repeat(4, minmax(160px, 1fr));
+      }
+      .bulk-select-zone {
+        grid-template-columns: 1fr;
+      }
+      #actionHint {
+        margin-left: 0;
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .summary {
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
+      }
+      .title {
+        font-size: 19px;
+      }
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .app {
+        display: none !important;
+      }
+
+      #printPages {
+        display: block !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card topbar">
+      <div>
+        <h1 class="title">Payroll Weekly Sheet</h1>
+        <p class="subtitle">Saturday-Friday payroll week with collapsible daily entry and print-ready timecard output.</p>
+      </div>
+      <div class="top-links">
+        <span class="chip" id="nycNowChip">NYC Date: -</span>
+        <button id="saveWeekBtn" class="secondary" type="button">Save Week</button>
+        <select id="historySelect" aria-label="Saved payroll weeks">
+          <option value="">Saved Weeks</option>
+        </select>
+        <button id="loadWeekBtn" class="secondary" type="button">Load Saved</button>
+        <button id="exportXlsxBtn" type="button">Export Filled Excel</button>
+        <button id="printBtn" class="warning" type="button">Print to PDF</button>
+        <button id="logoutBtn" class="secondary" type="button">Logout</button>
+        <a class="link-btn" href="/converter">Open CSV Converter</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="period-grid">
+        <div class="field">
+          <label>Week Start (Saturday)</label>
+          <input type="date" id="weekStartInput" />
+        </div>
+        <div class="period-chip"><strong>Week End (Friday):</strong>&nbsp;<span id="weekEndText">-</span></div>
+        <div class="period-chip"><strong>Pay Period:</strong>&nbsp;<span id="payPeriodText">-</span></div>
+        <div class="field">
+          <label>Payroll Note (optional)</label>
+          <input type="text" id="periodNoteInput" placeholder="Example: Week 02.08.26 - 02.14.26" />
+        </div>
+      </div>
+      <div class="hint" id="weekHint"></div>
+    </div>
+
+    <div class="card">
+      <h3 class="bulk-title">Bulk Job Entry For Selected Employees</h3>
+      <div class="bulk-grid">
+        <div class="field">
+          <label>Day</label>
+          <select id="bulkDayInput"></select>
+        </div>
+        <div class="field">
+          <label>Company Bucket</label>
+          <select id="bulkCompanyInput"></select>
+        </div>
+        <div class="field">
+          <label>Hours</label>
+          <input type="number" id="bulkHoursInput" min="0" step="0.5" value="0" />
+        </div>
+        <div class="field">
+          <label>IN</label>
+          <input type="time" id="bulkInInput" step="900" />
+        </div>
+        <div class="field">
+          <label>OUT</label>
+          <input type="time" id="bulkOutInput" step="900" />
+        </div>
+        <div class="field mode-field">
+          <label>Mode</label>
+          <select id="bulkModeInput">
+            <option value="add">Add to Existing</option>
+            <option value="replace">Replace Bucket Value</option>
+          </select>
+        </div>
+        <div class="field note-field">
+          <label>Job Note (optional)</label>
+          <input type="text" id="bulkNoteInput" placeholder="Example: Downtown move" />
+        </div>
+        <button id="bulkApplyBtn" type="button">Apply To Selected</button>
+      </div>
+      <div class="bulk-select-zone">
+        <div class="field bulk-search-box">
+          <label>Search Employees To Select</label>
+          <input id="bulkEmployeeSearchInput" type="text" placeholder="Type a name, then click to select/unselect" autocomplete="off" />
+          <div id="bulkEmployeeSearchResults" class="bulk-search-results" hidden></div>
+        </div>
+        <div class="bulk-selected-box">
+          <div class="bulk-selected-head">
+            <strong>Selected Employees</strong>
+            <span class="bulk-selected-count" id="bulkSelectedCount">0 selected</span>
+            <button id="bulkClearSelectedBtn" class="secondary" type="button">Clear Selected</button>
+          </div>
+          <div id="bulkSelectedNames" class="bulk-selected-list"></div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button id="manageToggleBtn" class="secondary" type="button">Manage Employees: Off</button>
+        <button id="addEmployeeBtn" type="button">Add Employee</button>
+        <button id="duplicateBtn" class="secondary" type="button">Duplicate Selected</button>
+        <button id="removeBtn" class="danger" type="button">Remove Selected</button>
+        <button id="selectAllBtn" class="secondary" type="button">Select All</button>
+        <button id="clearSelBtn" class="secondary" type="button">Clear Selection</button>
+        <button id="expandAllBtn" class="secondary" type="button">Expand All</button>
+        <button id="collapseAllBtn" class="secondary" type="button">Collapse All</button>
+        <span class="toolbar-note">Name and payroll company edit only in Manage mode. Time entries use 15-minute intervals.</span>
+        <span id="actionHint"></span>
+      </div>
+    </div>
+
+    <div class="sheet-wrap">
+      <table class="sheet-table">
+        <thead>
+          <tr>
+            <th class="sticky-left-1" style="width:44px;">Sel</th>
+            <th class="sticky-left-2" style="width:58px;">Days</th>
+            <th class="sortable-col" data-sort="name" style="width:240px;">Employee Name<span class="sort-indicator" id="sortNameIndicator">↕</span></th>
+            <th class="sortable-col" data-sort="payrollCompany" style="width:190px;">Payroll Company<span class="sort-indicator" id="sortCompanyIndicator">↕</span></th>
+            <th style="width:135px;">Hourly Rate</th>
+            <th style="width:145px;">Scanio Hrs</th>
+            <th style="width:145px;">Sea & Air Hrs</th>
+            <th style="width:145px;">Flat Price Hrs</th>
+            <th class="total-col" style="width:135px;">Total Hours</th>
+            <th class="total-col" style="width:145px;">Total Comm</th>
+          </tr>
+        </thead>
+        <tbody id="payrollBody"></tbody>
+      </table>
+    </div>
+
+    <div class="summary">
+      <div class="stat">
+        <div class="label">Employees</div>
+        <div class="value" id="sumEmployees">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Total Hours</div>
+        <div class="value" id="sumHours">0.00</div>
+      </div>
+      <div class="stat">
+        <div class="label">Total Commissions</div>
+        <div class="value" id="sumCommissions">$0.00</div>
+      </div>
+      <div class="stat">
+        <div class="label">Total Payroll Base</div>
+        <div class="value" id="sumBase">$0.00</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="printPages"></div>
+
+  <script>
+    const PAYROLL_COMPANIES = [
+      "Scanio Moving",
+      "Scanio Storage",
+      "Sea and Air Int-L",
+      "Flat Price"
+    ];
+    const TRACKED_COMPANIES = ["Scanio", "Sea and Air", "Flat Price"];
+    const BULK_TARGETS = [
+      { company: 0, label: "Scanio Hrs" },
+      { company: 1, label: "Sea & Air Hrs" },
+      { company: 2, label: "Flat Price Hrs" }
+    ];
+    const HOME_COMPANY_TO_NAME = {
+      scanio_moving: "Scanio Moving",
+      scanio_storage: "Scanio Storage",
+      sea_and_air_intl: "Sea and Air Int-L",
+      flat_price: "Flat Price"
+    };
+    const DAY_NAMES = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
+
+    const tbody = document.getElementById("payrollBody");
+    const weekStartInput = document.getElementById("weekStartInput");
+    const weekEndText = document.getElementById("weekEndText");
+    const payPeriodText = document.getElementById("payPeriodText");
+    const nycNowChip = document.getElementById("nycNowChip");
+    const periodNoteInput = document.getElementById("periodNoteInput");
+    const weekHint = document.getElementById("weekHint");
+    const actionHint = document.getElementById("actionHint");
+    const saveWeekBtn = document.getElementById("saveWeekBtn");
+    const historySelect = document.getElementById("historySelect");
+    const loadWeekBtn = document.getElementById("loadWeekBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const exportXlsxBtn = document.getElementById("exportXlsxBtn");
+    const manageToggleBtn = document.getElementById("manageToggleBtn");
+    const addEmployeeBtn = document.getElementById("addEmployeeBtn");
+    const duplicateBtn = document.getElementById("duplicateBtn");
+    const removeBtn = document.getElementById("removeBtn");
+    const sortNameIndicator = document.getElementById("sortNameIndicator");
+    const sortCompanyIndicator = document.getElementById("sortCompanyIndicator");
+    const sortableHeaders = Array.from(document.querySelectorAll(".sheet-table thead th.sortable-col"));
+    const bulkDayInput = document.getElementById("bulkDayInput");
+    const bulkCompanyInput = document.getElementById("bulkCompanyInput");
+    const bulkHoursInput = document.getElementById("bulkHoursInput");
+    const bulkInInput = document.getElementById("bulkInInput");
+    const bulkOutInput = document.getElementById("bulkOutInput");
+    const bulkModeInput = document.getElementById("bulkModeInput");
+    const bulkNoteInput = document.getElementById("bulkNoteInput");
+    const bulkEmployeeSearchInput = document.getElementById("bulkEmployeeSearchInput");
+    const bulkEmployeeSearchResults = document.getElementById("bulkEmployeeSearchResults");
+    const bulkSelectedCount = document.getElementById("bulkSelectedCount");
+    const bulkSelectedNames = document.getElementById("bulkSelectedNames");
+    const bulkClearSelectedBtn = document.getElementById("bulkClearSelectedBtn");
+
+    let employees = [];
+    let nextEmployeeId = 1;
+    let manageMode = false;
+    let weekStart = snapToSaturday(getNYCToday());
+    let bulkReferencePair = null;
+    let bulkAutoField = null;
+    const detailReferenceLocks = new Map();
+    let activeSortField = "";
+    let activeSortDirection = "asc";
+
+    function pad2(value) {
+      return String(value).padStart(2, "0");
+    }
+
+    function formatIsoDate(date) {
+      return (
+        date.getFullYear() +
+        "-" +
+        pad2(date.getMonth() + 1) +
+        "-" +
+        pad2(date.getDate())
+      );
+    }
+
+    function formatUsDate(date) {
+      return (
+        pad2(date.getMonth() + 1) +
+        "/" +
+        pad2(date.getDate()) +
+        "/" +
+        date.getFullYear()
+      );
+    }
+
+    function formatUsShortDate(date) {
+      return (
+        pad2(date.getMonth() + 1) +
+        "/" +
+        pad2(date.getDate()) +
+        "/" +
+        String(date.getFullYear()).slice(-2)
+      );
+    }
+
+    function parseIsoDate(value) {
+      if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return null;
+      }
+      const [year, month, day] = value.split("-").map(Number);
+      const date = new Date(year, month - 1, day);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function addDays(date, days) {
+      const out = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      out.setDate(out.getDate() + days);
+      return out;
+    }
+
+    function snapToSaturday(date) {
+      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const shift = (d.getDay() + 1) % 7;
+      d.setDate(d.getDate() - shift);
+      return d;
+    }
+
+    function safeNumber(value) {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function getNYCToday() {
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        weekday: "short"
+      });
+      const parts = formatter.formatToParts(new Date());
+      const map = {};
+      parts.forEach((part) => {
+        if (part.type !== "literal") {
+          map[part.type] = part.value;
+        }
+      });
+      const date = new Date(
+        Number(map.year),
+        Number(map.month) - 1,
+        Number(map.day)
+      );
+      nycNowChip.textContent =
+        "NYC Date: " + (map.weekday || "") + " " + formatUsDate(date);
+      return date;
+    }
+
+    function formatTime12(value) {
+      if (!value || !/^\d{2}:\d{2}$/.test(value)) {
+        return "";
+      }
+      const [hh, mm] = value.split(":").map(Number);
+      if (!Number.isFinite(hh) || !Number.isFinite(mm)) {
+        return "";
+      }
+      const suffix = hh >= 12 ? "PM" : "AM";
+      const hr12 = hh % 12 === 0 ? 12 : hh % 12;
+      return pad2(hr12) + ":" + pad2(mm) + " " + suffix;
+    }
+
+    function formatHoursClock(value) {
+      const totalMinutes = Math.round(safeNumber(value) * 60);
+      const sign = totalMinutes < 0 ? "-" : "";
+      const absMinutes = Math.abs(totalMinutes);
+      const hours = Math.floor(absMinutes / 60);
+      const minutes = absMinutes % 60;
+      return sign + String(hours) + ":" + pad2(minutes);
+    }
+
+    function formatHoursClockCompact(value) {
+      const totalMinutes = Math.round(safeNumber(value) * 60);
+      const sign = totalMinutes < 0 ? "-" : "";
+      const absMinutes = Math.abs(totalMinutes);
+      const hours = Math.floor(absMinutes / 60);
+      const minutes = absMinutes % 60;
+      if (hours === 0) {
+        return sign + ":" + pad2(minutes);
+      }
+      return sign + String(hours) + ":" + pad2(minutes);
+    }
+
+    function formatMoneyCell(value) {
+      const amount = safeNumber(value);
+      if (Math.abs(amount - Math.round(amount)) < 1e-9) {
+        return String(Math.round(amount));
+      }
+      return amount.toFixed(2);
+    }
+
+    function printDeptLabel(companyIndex) {
+      if (companyIndex === 0) {
+        return "scanio moving";
+      }
+      if (companyIndex === 1) {
+        return "sea and air";
+      }
+      return "FLATPRICE";
+    }
+
+    function printDeptTransferLabel(companyIndex) {
+      if (companyIndex === 0) {
+        return "SCANIO MOVING";
+      }
+      if (companyIndex === 1) {
+        return "SEA AND AIR";
+      }
+      return "FLATPRICE";
+    }
+
+    function calcHoursFromTimes(inTime, outTime) {
+      if (!inTime || !outTime) {
+        return 0;
+      }
+      if (!/^\d{2}:\d{2}$/.test(inTime) || !/^\d{2}:\d{2}$/.test(outTime)) {
+        return 0;
+      }
+      const [inH, inM] = inTime.split(":").map(Number);
+      const [outH, outM] = outTime.split(":").map(Number);
+      if (![inH, inM, outH, outM].every(Number.isFinite)) {
+        return 0;
+      }
+      const inMinutes = inH * 60 + inM;
+      let outMinutes = outH * 60 + outM;
+      if (outMinutes < inMinutes) {
+        outMinutes += 24 * 60;
+      }
+      const gross = (outMinutes - inMinutes) / 60;
+      return gross > 0 ? gross : 0;
+    }
+
+    function parseTimeToMinutes(value) {
+      if (!value || !/^\d{2}:\d{2}$/.test(value)) {
+        return null;
+      }
+      const [hh, mm] = value.split(":").map(Number);
+      if (!Number.isFinite(hh) || !Number.isFinite(mm)) {
+        return null;
+      }
+      return hh * 60 + mm;
+    }
+
+    function minutesToTime(value) {
+      const m = ((Math.round(value) % (24 * 60)) + (24 * 60)) % (24 * 60);
+      const hh = Math.floor(m / 60);
+      const mm = m % 60;
+      return pad2(hh) + ":" + pad2(mm);
+    }
+
+    function snapTimeToQuarter(value) {
+      const minutes = parseTimeToMinutes(value);
+      if (minutes === null) {
+        return String(value || "");
+      }
+      const snapped = Math.round(minutes / 15) * 15;
+      return minutesToTime(snapped);
+    }
+
+    function payrollBucketForCompany(payrollCompany) {
+      const value = String(payrollCompany || "").toLowerCase();
+      if (value.includes("scanio")) {
+        return 0;
+      }
+      if (value.includes("sea") || value.includes("air")) {
+        return 1;
+      }
+      return 2;
+    }
+
+    function newDayEntry(seed) {
+      const hours = [0, 0, 0];
+      const commissions = [0, 0, 0];
+      const companyTimes = [
+        { inTime: "", outTime: "" },
+        { inTime: "", outTime: "" },
+        { inTime: "", outTime: "" }
+      ];
+      if (seed && Array.isArray(seed.hours)) {
+        for (let idx = 0; idx < 3; idx += 1) {
+          hours[idx] = safeNumber(seed.hours[idx]);
+        }
+      }
+      if (seed && Array.isArray(seed.commissions)) {
+        for (let idx = 0; idx < 3; idx += 1) {
+          commissions[idx] = safeNumber(seed.commissions[idx]);
+        }
+      }
+      if (seed && Array.isArray(seed.companyTimes)) {
+        for (let idx = 0; idx < 3; idx += 1) {
+          const slot = seed.companyTimes[idx] || {};
+          companyTimes[idx] = {
+            inTime: typeof slot.inTime === "string" ? slot.inTime : "",
+            outTime: typeof slot.outTime === "string" ? slot.outTime : ""
+          };
+        }
+      } else if (seed && (seed.inTime || seed.outTime)) {
+        // Backward compatibility: migrate legacy day-level IN/OUT into the busiest bucket.
+        let bucket = 0;
+        let maxHours = -1;
+        for (let idx = 0; idx < 3; idx += 1) {
+          if (safeNumber(hours[idx]) > maxHours) {
+            maxHours = safeNumber(hours[idx]);
+            bucket = idx;
+          }
+        }
+        companyTimes[bucket] = {
+          inTime: typeof seed.inTime === "string" ? seed.inTime : "",
+          outTime: typeof seed.outTime === "string" ? seed.outTime : ""
+        };
+      }
+      return {
+        companyTimes,
+        hours,
+        commissions,
+        note: seed && typeof seed.note === "string" ? seed.note : ""
+      };
+    }
+
+    function newEmployee(seed) {
+      const employee = {
+        id: nextEmployeeId++,
+        selected: false,
+        expanded: false,
+        name: "",
+        payrollCompany: PAYROLL_COMPANIES[0],
+        rate: 0,
+        commissionsByCompany: [0, 0, 0],
+        days: DAY_NAMES.map(() => newDayEntry())
+      };
+
+      if (seed && typeof seed === "object") {
+        employee.name = String(seed.name || "");
+        if (PAYROLL_COMPANIES.includes(seed.payrollCompany)) {
+          employee.payrollCompany = seed.payrollCompany;
+        }
+        employee.rate = safeNumber(seed.rate);
+        const seededCommissions = Array.isArray(seed.commissionsByCompany)
+          ? [
+              safeNumber(seed.commissionsByCompany[0]),
+              safeNumber(seed.commissionsByCompany[1]),
+              safeNumber(seed.commissionsByCompany[2])
+            ]
+          : [0, 0, 0];
+        employee.expanded = !!seed.expanded;
+        employee.selected = !!seed.selected;
+        if (Array.isArray(seed.days)) {
+          employee.days = DAY_NAMES.map((_, idx) => newDayEntry(seed.days[idx]));
+        }
+        const hasDayCommissions = employee.days.some((day) =>
+          day.commissions.some((value) => safeNumber(value) !== 0)
+        );
+        if (!hasDayCommissions && seededCommissions.some((value) => value !== 0)) {
+          employee.days[0].commissions = [...seededCommissions];
+        }
+        employee.commissionsByCompany = [...seededCommissions];
+      }
+
+      return employee;
+    }
+
+    function findEmployee(id) {
+      return employees.find((item) => item.id === id) || null;
+    }
+
+    function commissionTotalsByCompany(employee) {
+      const companyTotals = [0, 0, 0];
+      employee.days.forEach((day) => {
+        for (let idx = 0; idx < 3; idx += 1) {
+          companyTotals[idx] += safeNumber(day.commissions[idx]);
+        }
+      });
+      return companyTotals;
+    }
+
+    function employeeTotals(employee) {
+      const companyTotals = [0, 0, 0];
+      employee.days.forEach((day) => {
+        for (let idx = 0; idx < 3; idx += 1) {
+          companyTotals[idx] += safeNumber(day.hours[idx]);
+        }
+      });
+      const totalHours = companyTotals.reduce((acc, value) => acc + value, 0);
+      const totalCommissions = commissionTotalsByCompany(employee).reduce(
+        (acc, value) => acc + safeNumber(value),
+        0
+      );
+      return { companyTotals, totalHours, totalCommissions };
+    }
+
+    function setInputValueIfNotFocused(input, value) {
+      if (!input) {
+        return;
+      }
+      if (document.activeElement === input) {
+        return;
+      }
+      if (input.value !== value) {
+        input.value = value;
+      }
+    }
+
+    function mapRosterCompany(employee) {
+      const key = String(employee.home_company || "").trim();
+      if (HOME_COMPANY_TO_NAME[key]) {
+        return HOME_COMPANY_TO_NAME[key];
+      }
+      const label = String(employee.home_company_label || "").trim();
+      if (PAYROLL_COMPANIES.includes(label)) {
+        return label;
+      }
+      return PAYROLL_COMPANIES[0];
+    }
+
+    function deptCode(companyName) {
+      return String(companyName || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+    }
+
+    function dayTotal(day) {
+      return day.hours.reduce((acc, value) => acc + safeNumber(value), 0);
+    }
+
+    function dayDepartment(day, fallbackCompany) {
+      let maxIdx = -1;
+      let maxValue = 0;
+      day.hours.forEach((value, idx) => {
+        const n = safeNumber(value);
+        if (n > maxValue) {
+          maxValue = n;
+          maxIdx = idx;
+        }
+      });
+      if (maxIdx >= 0) {
+        return TRACKED_COMPANIES[maxIdx];
+      }
+      return fallbackCompany;
+    }
+
+    function dayCombinedTimes(day) {
+      let earliest = null;
+      let latest = null;
+      for (let idx = 0; idx < 3; idx += 1) {
+        const slot = day.companyTimes[idx];
+        const start = parseTimeToMinutes(slot.inTime);
+        const endRaw = parseTimeToMinutes(slot.outTime);
+        if (start === null || endRaw === null) {
+          continue;
+        }
+        const end = endRaw < start ? endRaw + 24 * 60 : endRaw;
+        if (earliest === null || start < earliest) {
+          earliest = start;
+        }
+        if (latest === null || end > latest) {
+          latest = end;
+        }
+      }
+      if (earliest === null || latest === null) {
+        return { inTime: "", outTime: "" };
+      }
+      return { inTime: minutesToTime(earliest), outTime: minutesToTime(latest) };
+    }
+
+    function detailLockKey(employeeId, dayIndex, companyIndex) {
+      return String(employeeId) + ":" + String(dayIndex) + ":" + String(companyIndex);
+    }
+
+    function detailFieldFromSource(sourceField) {
+      if (sourceField === "company-in-time") {
+        return "in";
+      }
+      if (sourceField === "company-out-time") {
+        return "out";
+      }
+      if (sourceField === "hour") {
+        return "hours";
+      }
+      return "";
+    }
+
+    function detailHasValue(field, hasIn, hasOut, hasHours) {
+      if (field === "in") {
+        return hasIn;
+      }
+      if (field === "out") {
+        return hasOut;
+      }
+      return hasHours;
+    }
+
+    function activeDetailField(employeeId, dayIndex, companyIndex) {
+      const active = document.activeElement;
+      if (!active || !active.dataset) {
+        return "";
+      }
+      if (Number(active.dataset.id) !== employeeId) {
+        return "";
+      }
+      if (Number(active.dataset.day) !== dayIndex) {
+        return "";
+      }
+      if (Number(active.dataset.company) !== companyIndex) {
+        return "";
+      }
+      return detailFieldFromSource(String(active.dataset.field || ""));
+    }
+
+    function applyDetailPair(pair, day, companyIndex, inMinutes, outMinutes, currentHours) {
+      const slot = day.companyTimes[companyIndex];
+      if (pair.includes("in") && pair.includes("out")) {
+        day.hours[companyIndex] = calcHoursFromTimes(slot.inTime, slot.outTime);
+        return;
+      }
+      if (pair.includes("in") && pair.includes("hours")) {
+        if (inMinutes !== null) {
+          slot.outTime = minutesToTime(inMinutes + Math.round(currentHours * 60));
+        }
+        return;
+      }
+      if (pair.includes("out") && pair.includes("hours")) {
+        if (outMinutes !== null) {
+          slot.inTime = minutesToTime(outMinutes - Math.round(currentHours * 60));
+        }
+      }
+    }
+
+    function applyTimeAutofill(employee, dayIndex, companyIndex, sourceField) {
+      const day = employee.days[dayIndex];
+      const slot = day.companyTimes[companyIndex];
+      const key = detailLockKey(employee.id, dayIndex, companyIndex);
+      const changedField = detailFieldFromSource(sourceField);
+      const inMinutes = parseTimeToMinutes(slot.inTime);
+      const outMinutes = parseTimeToMinutes(slot.outTime);
+      const hasIn = inMinutes !== null;
+      const hasOut = outMinutes !== null;
+      const currentHours = safeNumber(day.hours[companyIndex]);
+      const hasHours = currentHours > 0;
+      const hasByField = {
+        in: hasIn,
+        out: hasOut,
+        hours: hasHours
+      };
+      let lock = detailReferenceLocks.get(key) || null;
+
+      if (changedField) {
+        const changedHasValue = detailHasValue(changedField, hasIn, hasOut, hasHours);
+        if (!changedHasValue) {
+          const activeField = activeDetailField(employee.id, dayIndex, companyIndex);
+          if (activeField === changedField) {
+            // Ignore transient empty value while user is typing.
+            return;
+          }
+          if (lock && (lock.auto === changedField || lock.pair.includes(changedField))) {
+            detailReferenceLocks.delete(key);
+          }
+          return;
+        }
+      }
+
+      if (lock && changedField === lock.auto) {
+        // User manually changed the auto field, release the lock.
+        detailReferenceLocks.delete(key);
+        lock = null;
+      }
+
+      if (lock) {
+        if (hasByField[lock.pair[0]] && hasByField[lock.pair[1]]) {
+          applyDetailPair(lock.pair, day, companyIndex, inMinutes, outMinutes, currentHours);
+          return;
+        }
+        detailReferenceLocks.delete(key);
+        lock = null;
+      }
+
+      const filled = [];
+      if (hasIn) {
+        filled.push("in");
+      }
+      if (hasOut) {
+        filled.push("out");
+      }
+      if (hasHours) {
+        filled.push("hours");
+      }
+
+      if (filled.length === 2) {
+        const auto = ["in", "out", "hours"].find((field) => !filled.includes(field)) || "";
+        if (auto) {
+          detailReferenceLocks.set(key, { pair: [...filled], auto });
+        }
+        applyDetailPair(filled, day, companyIndex, inMinutes, outMinutes, currentHours);
+        return;
+      }
+
+      if (filled.length === 3) {
+        if (changedField === "hours" && hasIn) {
+          slot.outTime = minutesToTime(inMinutes + Math.round(currentHours * 60));
+          return;
+        }
+        if (changedField === "in" || changedField === "out") {
+          day.hours[companyIndex] = calcHoursFromTimes(slot.inTime, slot.outTime);
+        }
+      }
+    }
+
+    function renderPayrollCompanySelect(employeeId, selectedCompany) {
+      const options = PAYROLL_COMPANIES.map((company) => {
+        const selected = company === selectedCompany ? " selected" : "";
+        return "<option" + selected + ">" + escapeHtml(company) + "</option>";
+      }).join("");
+      const lockedClass = manageMode ? "" : " locked";
+      const disabledAttr = manageMode ? "" : " disabled";
+      return (
+        '<select class="sheet-input sheet-select' + lockedClass + '" data-field="payrollCompany" data-id="' +
+        employeeId +
+        '"' + disabledAttr + ">" +
+        options +
+        "</select>"
+      );
+    }
+
+    function renderSummaryRow(employee) {
+      const totals = employeeTotals(employee);
+      const toggleIcon = employee.expanded ? "▾" : "▸";
+      const metaEditable = manageMode;
+      const nameReadonly = metaEditable ? "" : " readonly";
+      const nameLocked = metaEditable ? "" : " locked";
+      const rateReadonly = metaEditable ? "" : " readonly";
+      const rateLocked = metaEditable ? "" : " locked";
+      const rateDisabled = metaEditable ? "" : " disabled";
+
+      return (
+        '<tr class="summary-row" data-id="' + employee.id + '">' +
+          '<td class="sticky-left-1">' +
+            '<input type="checkbox" data-field="selected" data-id="' + employee.id + '"' +
+              (employee.selected ? " checked" : "") +
+            " />" +
+          "</td>" +
+          '<td class="sticky-left-2">' +
+            '<button type="button" class="toggle-btn" data-action="toggle" data-id="' + employee.id + '">' +
+              toggleIcon +
+            "</button>" +
+          "</td>" +
+          '<td><input type="text" class="sheet-input' + nameLocked + '" data-field="name" data-id="' + employee.id + '" value="' + escapeHtml(employee.name) + '" placeholder="Employee name"' + nameReadonly + " /></td>" +
+          "<td>" + renderPayrollCompanySelect(employee.id, employee.payrollCompany) + "</td>" +
+          '<td><input type="number" class="sheet-input num' + rateLocked + '" data-field="rate" data-id="' + employee.id + '" min="0" step="0.01" value="' + employee.rate.toFixed(2) + '"' + rateReadonly + rateDisabled + " /></td>" +
+          '<td><input type="number" class="sheet-input num readonly" readonly data-cell="company-total-0" data-id="' + employee.id + '" value="' + totals.companyTotals[0].toFixed(2) + '" /></td>' +
+          '<td><input type="number" class="sheet-input num readonly" readonly data-cell="company-total-1" data-id="' + employee.id + '" value="' + totals.companyTotals[1].toFixed(2) + '" /></td>' +
+          '<td><input type="number" class="sheet-input num readonly" readonly data-cell="company-total-2" data-id="' + employee.id + '" value="' + totals.companyTotals[2].toFixed(2) + '" /></td>' +
+          '<td class="total-col"><input type="number" class="sheet-input num readonly" readonly data-cell="total-hours" data-id="' + employee.id + '" value="' + totals.totalHours.toFixed(2) + '" /></td>' +
+          '<td class="total-col"><input type="number" class="sheet-input num readonly" readonly data-cell="total-comm" data-id="' + employee.id + '" value="' + totals.totalCommissions.toFixed(2) + '" /></td>' +
+        "</tr>"
+      );
+    }
+
+    function renderDetailRows(employee) {
+      const dayRows = DAY_NAMES.map((dayName, dayIndex) => {
+        const dayDate = addDays(weekStart, dayIndex);
+        const day = employee.days[dayIndex];
+        const total = dayTotal(day);
+        const companyTimeCells = TRACKED_COMPANIES.map((_, companyIndex) => {
+          const slot = day.companyTimes[companyIndex];
+          return (
+            '<td><input type="time" class="sheet-input" step="900" data-field="company-in-time" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" value="' + escapeHtml(slot.inTime) + '" /></td>' +
+            '<td><input type="time" class="sheet-input" step="900" data-field="company-out-time" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" value="' + escapeHtml(slot.outTime) + '" /></td>' +
+            '<td><input type="number" class="sheet-input num" data-field="hour" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" min="0" step="0.5" value="' + safeNumber(day.hours[companyIndex]).toFixed(2) + '" /></td>'
+          );
+        }).join("");
+        const commCells = TRACKED_COMPANIES.map((_, companyIndex) => {
+          return (
+            '<td><input type="number" class="sheet-input num comm-compact" data-field="day-comm" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" min="0" step="0.01" value="' + safeNumber(day.commissions[companyIndex]).toFixed(2) + '" /></td>'
+          );
+        }).join("");
+        return (
+          "<tr>" +
+            "<td>" + dayName + "</td>" +
+            "<td>" + formatUsShortDate(dayDate) + "</td>" +
+            companyTimeCells +
+            '<td class="detail-total-col"><input type="number" class="sheet-input num readonly detail-total" readonly data-cell="day-total" data-id="' + employee.id + '" data-day="' + dayIndex + '" value="' + total.toFixed(2) + '" /></td>' +
+            commCells +
+            '<td><textarea class="sheet-input day-note-input" data-field="day-note" data-id="' + employee.id + '" data-day="' + dayIndex + '" rows="1" placeholder="optional note">' + escapeHtml(day.note) + "</textarea></td>" +
+          "</tr>"
+        );
+      }).join("");
+
+      return (
+        '<tr class="detail-row' + (employee.expanded ? "" : " collapsed") + '" data-id="' + employee.id + '">' +
+          '<td colspan="10">' +
+            '<div class="detail-card">' +
+              '<div class="detail-head">' +
+                "<span><strong>" + escapeHtml(employee.name || "Employee") + "</strong> daily breakdown (Sat-Fri)</span>" +
+                '<span class="detail-payroll-company">Payroll Company: ' + escapeHtml(employee.payrollCompany) + "</span>" +
+              "</div>" +
+              '<table class="detail-table">' +
+                "<thead>" +
+                  "<tr>" +
+                    "<th style=\"width:60px;\">Day</th>" +
+                    "<th style=\"width:90px;\">Date</th>" +
+                    "<th style=\"width:88px;\">Sc IN</th>" +
+                    "<th style=\"width:88px;\">Sc OUT</th>" +
+                    "<th style=\"width:84px;\">Sc Hrs</th>" +
+                    "<th style=\"width:88px;\">SA IN</th>" +
+                    "<th style=\"width:88px;\">SA OUT</th>" +
+                    "<th style=\"width:84px;\">SA Hrs</th>" +
+                    "<th style=\"width:88px;\">FP IN</th>" +
+                    "<th style=\"width:88px;\">FP OUT</th>" +
+                    "<th style=\"width:84px;\">FP Hrs</th>" +
+                    "<th class=\"detail-total-col\" style=\"width:95px;\">Day Total</th>" +
+                    "<th style=\"width:82px;\">Sc Comm</th>" +
+                    "<th style=\"width:82px;\">SA Comm</th>" +
+                    "<th style=\"width:82px;\">FP Comm</th>" +
+                    "<th style=\"width:180px;\">Notes</th>" +
+                  "</tr>" +
+                "</thead>" +
+                "<tbody>" + dayRows + "</tbody>" +
+              "</table>" +
+            "</div>" +
+          "</td>" +
+        "</tr>"
+      );
+    }
+
+    function renderTable() {
+      applyCurrentSort();
+      const html = employees.map((employee) => renderSummaryRow(employee) + renderDetailRows(employee)).join("");
+      tbody.innerHTML = html;
+      resizeAllNoteAreas();
+      updateAllSummaries();
+      updateSortHeaderState();
+      refreshSelectedEmployeePanel();
+      renderBulkSearchResults();
+    }
+
+    function updateEmployeeSummaryCells(employeeId) {
+      const employee = findEmployee(employeeId);
+      if (!employee) {
+        return;
+      }
+      const totals = employeeTotals(employee);
+
+      for (let idx = 0; idx < 3; idx += 1) {
+        const cell = tbody.querySelector(
+          'input[data-cell="company-total-' + idx + '"][data-id="' + employeeId + '"]'
+        );
+        if (cell) {
+          setInputValueIfNotFocused(cell, totals.companyTotals[idx].toFixed(2));
+        }
+      }
+
+      const totalHoursCell = tbody.querySelector(
+        'input[data-cell="total-hours"][data-id="' + employeeId + '"]'
+      );
+      if (totalHoursCell) {
+        setInputValueIfNotFocused(totalHoursCell, totals.totalHours.toFixed(2));
+      }
+
+      const totalCommCell = tbody.querySelector(
+        'input[data-cell="total-comm"][data-id="' + employeeId + '"]'
+      );
+      if (totalCommCell) {
+        setInputValueIfNotFocused(totalCommCell, totals.totalCommissions.toFixed(2));
+      }
+
+      for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+        const day = employee.days[dayIndex];
+        const dayTotalValue = dayTotal(day);
+
+        const dayTotalCell = tbody.querySelector(
+          'input[data-cell="day-total"][data-id="' + employeeId + '"][data-day="' + dayIndex + '"]'
+        );
+        if (dayTotalCell) {
+          setInputValueIfNotFocused(dayTotalCell, dayTotalValue.toFixed(2));
+        }
+
+        for (let companyIndex = 0; companyIndex < 3; companyIndex += 1) {
+          const hourCell = tbody.querySelector(
+            'input[data-field="hour"][data-id="' + employeeId + '"][data-day="' + dayIndex + '"][data-company="' + companyIndex + '"]'
+          );
+          if (hourCell) {
+            setInputValueIfNotFocused(hourCell, safeNumber(day.hours[companyIndex]).toFixed(2));
+          }
+
+          const inCell = tbody.querySelector(
+            'input[data-field="company-in-time"][data-id="' + employeeId + '"][data-day="' + dayIndex + '"][data-company="' + companyIndex + '"]'
+          );
+          if (inCell) {
+            setInputValueIfNotFocused(inCell, day.companyTimes[companyIndex].inTime);
+          }
+
+          const outCell = tbody.querySelector(
+            'input[data-field="company-out-time"][data-id="' + employeeId + '"][data-day="' + dayIndex + '"][data-company="' + companyIndex + '"]'
+          );
+          if (outCell) {
+            setInputValueIfNotFocused(outCell, day.companyTimes[companyIndex].outTime);
+          }
+        }
+      }
+    }
+
+    function updateAllSummaries() {
+      let employeeCount = 0;
+      let totalHours = 0;
+      let totalCommissions = 0;
+      let totalBase = 0;
+
+      employees.forEach((employee) => {
+        if (employee.name.trim()) {
+          employeeCount += 1;
+        }
+        const totals = employeeTotals(employee);
+        totalHours += totals.totalHours;
+        totalCommissions += totals.totalCommissions;
+        totalBase += totals.totalHours * safeNumber(employee.rate);
+      });
+
+      document.getElementById("sumEmployees").textContent = String(employeeCount);
+      document.getElementById("sumHours").textContent = totalHours.toFixed(2);
+      document.getElementById("sumCommissions").textContent = "$" + totalCommissions.toFixed(2);
+      document.getElementById("sumBase").textContent = "$" + totalBase.toFixed(2);
+    }
+
+    function hasPrintableWeekActivity(employee) {
+      const totals = employeeTotals(employee);
+      return totals.totalHours > 0 || totals.totalCommissions > 0;
+    }
+
+    function refreshBulkDayOptions() {
+      const currentValue = bulkDayInput.value;
+      bulkDayInput.innerHTML = DAY_NAMES.map((dayName, dayIndex) => {
+        const date = addDays(weekStart, dayIndex);
+        const selected = currentValue === String(dayIndex) ? " selected" : "";
+        return (
+          '<option value="' + dayIndex + '"' + selected + ">" +
+          dayName +
+          " " +
+          formatUsShortDate(date) +
+          "</option>"
+        );
+      }).join("");
+    }
+
+    function refreshBulkCompanyOptions() {
+      bulkCompanyInput.innerHTML = BULK_TARGETS.map((target) => {
+        return '<option value="' + target.company + '">' + escapeHtml(target.label) + "</option>";
+      }).join("");
+    }
+
+    function readBulkTarget() {
+      const company = Number(bulkCompanyInput.value);
+      if (company >= 0 && company < 3) {
+        return { company };
+      }
+      return null;
+    }
+
+    function setWeekStart(date, showHint) {
+      const original = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const snapped = snapToSaturday(date);
+      const changed = snapped.getTime() !== original.getTime();
+      weekStart = snapped;
+
+      weekStartInput.value = formatIsoDate(weekStart);
+      const weekEnd = addDays(weekStart, 6);
+      weekEndText.textContent = formatUsDate(weekEnd);
+      payPeriodText.textContent = formatUsDate(weekStart) + " - " + formatUsDate(weekEnd);
+
+      if (showHint && changed) {
+        weekHint.textContent = "Date adjusted to Saturday to keep Saturday-Friday payroll week.";
+      } else {
+        weekHint.textContent = "";
+      }
+
+      refreshBulkDayOptions();
+
+      const nycToday = getNYCToday();
+      document.title = "Batch_Report_Sea_and_Air(" + formatIsoDate(nycToday) + ")";
+    }
+
+    function setActionHint(text, isError) {
+      actionHint.textContent = text || "";
+      actionHint.style.color = isError ? "#b42318" : "#36506b";
+    }
+
+    function resizeNoteArea(target) {
+      if (!target) {
+        return;
+      }
+      target.style.height = "auto";
+      target.style.height = Math.max(28, target.scrollHeight) + "px";
+    }
+
+    function resizeAllNoteAreas() {
+      tbody.querySelectorAll('textarea[data-field="day-note"]').forEach((noteArea) => {
+        resizeNoteArea(noteArea);
+      });
+    }
+
+    function syncManageControls() {
+      manageToggleBtn.textContent = manageMode
+        ? "Manage Employees: On"
+        : "Manage Employees: Off";
+      addEmployeeBtn.disabled = !manageMode;
+      duplicateBtn.disabled = !manageMode;
+      removeBtn.disabled = !manageMode;
+    }
+
+    function selectedEmployees() {
+      return employees.filter((employee) => employee.selected);
+    }
+
+    function selectedEmployeesByName() {
+      return selectedEmployees().slice().sort((a, b) =>
+        String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity: "base" })
+      );
+    }
+
+    function setEmployeeSelectedState(employeeId, selected) {
+      const employee = findEmployee(employeeId);
+      if (!employee) {
+        return;
+      }
+      employee.selected = !!selected;
+      const checkbox = tbody.querySelector(
+        'input[data-field="selected"][data-id="' + employeeId + '"]'
+      );
+      if (checkbox) {
+        checkbox.checked = employee.selected;
+      }
+      refreshSelectedEmployeePanel();
+      renderBulkSearchResults();
+    }
+
+    function refreshSelectedEmployeePanel() {
+      const selected = selectedEmployeesByName();
+      bulkSelectedCount.textContent = String(selected.length) + " selected";
+      if (selected.length === 0) {
+        bulkSelectedNames.innerHTML = '<span class="bulk-selected-empty">No employees selected.</span>';
+        return;
+      }
+      bulkSelectedNames.innerHTML = selected
+        .map((employee) =>
+          '<span class="bulk-selected-chip">' +
+            '<span class="bulk-selected-chip-label">' + escapeHtml(employee.name || "Unnamed Employee") + "</span>" +
+            '<button class="bulk-selected-chip-remove" type="button" data-id="' + employee.id + '" title="Unselect">×</button>' +
+          "</span>"
+        )
+        .join("");
+    }
+
+    function toggleEmployeeDetails(employeeId) {
+      const employee = findEmployee(employeeId);
+      if (!employee) {
+        return;
+      }
+      employee.expanded = !employee.expanded;
+
+      const detailRow = tbody.querySelector('tr.detail-row[data-id="' + employeeId + '"]');
+      if (detailRow) {
+        detailRow.classList.toggle("collapsed", !employee.expanded);
+      }
+
+      const toggleButton = tbody.querySelector('button[data-action="toggle"][data-id="' + employeeId + '"]');
+      if (toggleButton) {
+        toggleButton.textContent = employee.expanded ? "▾" : "▸";
+      }
+    }
+
+    function createEmptyEmployee() {
+      return newEmployee({
+        name: "",
+        payrollCompany: PAYROLL_COMPANIES[0],
+        rate: 0,
+        commissionsByCompany: [0, 0, 0],
+        days: DAY_NAMES.map(() => ({
+          companyTimes: [
+            { inTime: "", outTime: "" },
+            { inTime: "", outTime: "" },
+            { inTime: "", outTime: "" }
+          ],
+          hours: [0, 0, 0],
+          commissions: [0, 0, 0],
+          note: ""
+        })),
+        expanded: true
+      });
+    }
+
+    function textSortValue(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function compareEmployeesByName(a, b) {
+      const nameA = textSortValue(a.name);
+      const nameB = textSortValue(b.name);
+      const nameResult = nameA.localeCompare(nameB, undefined, { sensitivity: "base" });
+      if (nameResult !== 0) {
+        return nameResult;
+      }
+      return Number(a.id) - Number(b.id);
+    }
+
+    function searchEmployees(query) {
+      const queryText = textSortValue(query);
+      const ordered = employees.slice().sort(compareEmployeesByName);
+      if (!queryText) {
+        return ordered.slice(0, 24);
+      }
+      return ordered
+        .filter((employee) => textSortValue(employee.name).includes(queryText))
+        .slice(0, 40);
+    }
+
+    function renderBulkSearchResults() {
+      const query = String(bulkEmployeeSearchInput.value || "");
+      const normalized = textSortValue(query);
+      const shouldOpen = document.activeElement === bulkEmployeeSearchInput || normalized.length > 0;
+      if (!shouldOpen) {
+        bulkEmployeeSearchResults.hidden = true;
+        bulkEmployeeSearchResults.innerHTML = "";
+        return;
+      }
+      const matches = searchEmployees(query);
+      if (matches.length === 0) {
+        bulkEmployeeSearchResults.hidden = false;
+        bulkEmployeeSearchResults.innerHTML =
+          '<div class="bulk-search-empty">No employee names match your search.</div>';
+        return;
+      }
+      bulkEmployeeSearchResults.hidden = false;
+      bulkEmployeeSearchResults.innerHTML = matches
+        .map((employee) => {
+          const selectedClass = employee.selected ? " selected" : "";
+          const status = employee.selected ? "Selected" : "Select";
+          return (
+            '<button type="button" class="bulk-search-item' + selectedClass + '" data-id="' + employee.id + '">' +
+              '<span>' + escapeHtml(employee.name || "Unnamed Employee") + "</span>" +
+              "<span>" + status + "</span>" +
+            "</button>"
+          );
+        })
+        .join("");
+    }
+
+    function payrollCompanySortOrder(companyName) {
+      const idx = PAYROLL_COMPANIES.findIndex(
+        (entry) => textSortValue(entry) === textSortValue(companyName)
+      );
+      return idx >= 0 ? idx : PAYROLL_COMPANIES.length + 1;
+    }
+
+    function compareEmployeesByPayrollCompanyThenName(a, b) {
+      const companyDiff = payrollCompanySortOrder(a.payrollCompany) - payrollCompanySortOrder(b.payrollCompany);
+      if (companyDiff !== 0) {
+        return companyDiff;
+      }
+      return compareEmployeesByName(a, b);
+    }
+
+    function applyCurrentSort() {
+      if (!activeSortField) {
+        return;
+      }
+      const direction = activeSortDirection === "desc" ? -1 : 1;
+      if (activeSortField === "name") {
+        employees.sort((a, b) => direction * compareEmployeesByName(a, b));
+        return;
+      }
+      if (activeSortField === "payrollCompany") {
+        employees.sort((a, b) => direction * compareEmployeesByPayrollCompanyThenName(a, b));
+      }
+    }
+
+    function updateSortHeaderState() {
+      sortableHeaders.forEach((header) => {
+        const isActive = header.dataset.sort === activeSortField;
+        header.classList.toggle("active", isActive);
+      });
+      if (sortNameIndicator) {
+        sortNameIndicator.textContent = activeSortField === "name"
+          ? (activeSortDirection === "asc" ? "▲" : "▼")
+          : "↕";
+      }
+      if (sortCompanyIndicator) {
+        sortCompanyIndicator.textContent = activeSortField === "payrollCompany"
+          ? (activeSortDirection === "asc" ? "▲" : "▼")
+          : "↕";
+      }
+    }
+
+    function toggleSortByField(field) {
+      if (field !== "name" && field !== "payrollCompany") {
+        return;
+      }
+      if (activeSortField === field) {
+        activeSortDirection = activeSortDirection === "asc" ? "desc" : "asc";
+      } else {
+        activeSortField = field;
+        activeSortDirection = "asc";
+      }
+      applyCurrentSort();
+      renderTable();
+      if (field === "name") {
+        setActionHint(
+          "Sorted by employee name (" + (activeSortDirection === "asc" ? "A-Z" : "Z-A") + ").",
+          false
+        );
+      } else {
+        setActionHint(
+          "Sorted by payroll company (" + (activeSortDirection === "asc" ? "A-Z" : "Z-A") + ").",
+          false
+        );
+      }
+    }
+
+    function duplicateSelected() {
+      if (!manageMode) {
+        setActionHint("Turn on Manage mode to duplicate rows.", true);
+        return;
+      }
+      const chosen = selectedEmployees();
+      if (chosen.length === 0) {
+        setActionHint("Select employees first to duplicate.", true);
+        return;
+      }
+      const clones = chosen.map((employee) =>
+        newEmployee({
+          name: employee.name,
+          payrollCompany: employee.payrollCompany,
+          rate: employee.rate,
+          commissionsByCompany: [...employee.commissionsByCompany],
+          days: employee.days.map((day) => ({
+            companyTimes: day.companyTimes.map((slot) => ({
+              inTime: slot.inTime,
+              outTime: slot.outTime
+            })),
+            hours: [...day.hours],
+            commissions: [...day.commissions],
+            note: day.note
+          })),
+          expanded: employee.expanded
+        })
+      );
+      employees = employees.concat(clones);
+      renderTable();
+      setActionHint("Duplicated " + chosen.length + " employee row(s).", false);
+    }
+
+    function removeSelected() {
+      if (!manageMode) {
+        setActionHint("Turn on Manage mode to remove rows.", true);
+        return;
+      }
+      const before = employees.length;
+      employees = employees.filter((employee) => !employee.selected);
+      const removed = before - employees.length;
+      if (removed === 0) {
+        setActionHint("Select employees first to remove.", true);
+        return;
+      }
+      renderTable();
+      setActionHint("Removed " + removed + " employee row(s).", false);
+    }
+
+    function setSelectionForAll(selected) {
+      employees.forEach((employee) => {
+        employee.selected = selected;
+      });
+      renderTable();
+      setActionHint(selected ? "Selected all rows." : "Cleared selection.", false);
+    }
+
+    function setAllExpanded(expanded) {
+      employees.forEach((employee) => {
+        employee.expanded = expanded;
+      });
+      renderTable();
+      setActionHint(expanded ? "Expanded all daily sections." : "Collapsed all daily sections.", false);
+    }
+
+    function applyBulkToSelected() {
+      const chosen = selectedEmployees();
+      if (chosen.length === 0) {
+        setActionHint("Select employees first for bulk apply.", true);
+        return;
+      }
+
+      const dayIndex = Number(bulkDayInput.value);
+      const target = readBulkTarget();
+      if (!(dayIndex >= 0 && dayIndex < 7 && target)) {
+        setActionHint("Invalid bulk day/company selection.", true);
+        return;
+      }
+
+      const mode = bulkModeInput.value === "replace" ? "replace" : "add";
+      const manualValue = safeNumber(bulkHoursInput.value);
+      const inTime = String(bulkInInput.value || "");
+      const outTime = String(bulkOutInput.value || "");
+      const note = String(bulkNoteInput.value || "").trim();
+      const resolved = resolveBulkEntry(inTime, outTime, manualValue);
+      if (resolved.error) {
+        setActionHint(resolved.error, true);
+        return;
+      }
+
+      const finalIn = resolved.finalIn;
+      const finalOut = resolved.finalOut;
+      const finalHours = resolved.finalHours;
+      const useHours = resolved.useHours;
+
+      if (!useHours && !note) {
+        setActionHint("Enter hours/times or a note before bulk apply.", true);
+        return;
+      }
+
+      chosen.forEach((employee) => {
+        const day = employee.days[dayIndex];
+        const slot = day.companyTimes[target.company];
+        if (finalIn) {
+          slot.inTime = finalIn;
+        }
+        if (finalOut) {
+          slot.outTime = finalOut;
+        }
+        if (note) {
+          day.note = note;
+        }
+        if (useHours) {
+          if (mode === "replace") {
+            day.hours[target.company] = finalHours;
+          } else {
+            day.hours[target.company] += finalHours;
+          }
+        }
+      });
+
+      renderTable();
+      const detailParts = [];
+      if (useHours) {
+        detailParts.push(finalHours.toFixed(2) + " hours");
+      }
+      if (finalIn || finalOut) {
+        detailParts.push((finalIn || "--:--") + " to " + (finalOut || "--:--"));
+      }
+      if (note) {
+        detailParts.push("note");
+      }
+      setActionHint("Applied " + detailParts.join(", ") + " to " + chosen.length + " selected employee(s).", false);
+    }
+
+    function resetBulkReferenceState() {
+      bulkReferencePair = null;
+      bulkAutoField = null;
+    }
+
+    function bulkHasValue(field, inTime, outTime, manualValue) {
+      if (field === "in") {
+        return !!inTime;
+      }
+      if (field === "out") {
+        return !!outTime;
+      }
+      return manualValue > 0;
+    }
+
+    function resolveBulkFromPair(pair, inTime, outTime, manualValue) {
+      const hasIn = !!inTime;
+      const hasOut = !!outTime;
+      const hasHours = manualValue > 0;
+
+      if (pair.includes("in") && pair.includes("out")) {
+        if (!hasIn || !hasOut) {
+          return {
+            error: "IN and OUT are required.",
+            finalIn: inTime,
+            finalOut: outTime,
+            finalHours: 0,
+            useHours: false
+          };
+        }
+        return {
+          finalIn: inTime,
+          finalOut: outTime,
+          finalHours: calcHoursFromTimes(inTime, outTime),
+          useHours: true
+        };
+      }
+
+      if (pair.includes("in") && pair.includes("hours")) {
+        if (!hasIn || !hasHours) {
+          return {
+            error: "IN and Hours are required.",
+            finalIn: inTime,
+            finalOut: outTime,
+            finalHours: 0,
+            useHours: false
+          };
+        }
+        const inMinutes = parseTimeToMinutes(inTime);
+        if (inMinutes === null) {
+          return {
+            error: "Invalid IN time for bulk entry.",
+            finalIn: "",
+            finalOut: "",
+            finalHours: 0,
+            useHours: false
+          };
+        }
+        return {
+          finalIn: inTime,
+          finalOut: minutesToTime(inMinutes + Math.round(manualValue * 60)),
+          finalHours: manualValue,
+          useHours: true
+        };
+      }
+
+      if (pair.includes("out") && pair.includes("hours")) {
+        if (!hasOut || !hasHours) {
+          return {
+            error: "OUT and Hours are required.",
+            finalIn: inTime,
+            finalOut: outTime,
+            finalHours: 0,
+            useHours: false
+          };
+        }
+        const outMinutes = parseTimeToMinutes(outTime);
+        if (outMinutes === null) {
+          return {
+            error: "Invalid OUT time for bulk entry.",
+            finalIn: "",
+            finalOut: "",
+            finalHours: 0,
+            useHours: false
+          };
+        }
+        return {
+          finalIn: minutesToTime(outMinutes - Math.round(manualValue * 60)),
+          finalOut: outTime,
+          finalHours: manualValue,
+          useHours: true
+        };
+      }
+
+      return {
+        finalIn: inTime,
+        finalOut: outTime,
+        finalHours: hasHours ? manualValue : 0,
+        useHours: hasHours
+      };
+    }
+
+    function applyResolvedBulkField(field, resolved) {
+      if (field === "in") {
+        if (bulkInInput.value !== resolved.finalIn) {
+          bulkInInput.value = resolved.finalIn;
+        }
+        return;
+      }
+      if (field === "out") {
+        if (bulkOutInput.value !== resolved.finalOut) {
+          bulkOutInput.value = resolved.finalOut;
+        }
+        return;
+      }
+      const hoursText = resolved.finalHours.toFixed(2);
+      if (bulkHoursInput.value !== hoursText) {
+        bulkHoursInput.value = hoursText;
+      }
+    }
+
+    function bulkFieldFromElement(element) {
+      if (!element) {
+        return "";
+      }
+      if (element === bulkInInput) {
+        return "in";
+      }
+      if (element === bulkOutInput) {
+        return "out";
+      }
+      if (element === bulkHoursInput) {
+        return "hours";
+      }
+      return "";
+    }
+
+    function resolveBulkEntry(inTime, outTime, manualValue) {
+      const hasIn = !!inTime;
+      const hasOut = !!outTime;
+      const hasHours = manualValue > 0;
+
+      if (hasIn && hasOut && hasHours) {
+        if (
+          Array.isArray(bulkReferencePair) &&
+          bulkReferencePair.length === 2 &&
+          bulkAutoField &&
+          bulkHasValue(bulkReferencePair[0], inTime, outTime, manualValue) &&
+          bulkHasValue(bulkReferencePair[1], inTime, outTime, manualValue)
+        ) {
+          const preferred = resolveBulkFromPair(bulkReferencePair, inTime, outTime, manualValue);
+          if (!preferred.error) {
+            return preferred;
+          }
+        }
+        return {
+          finalIn: inTime,
+          finalOut: outTime,
+          finalHours: manualValue,
+          useHours: true
+        };
+      }
+
+      if (hasIn && hasOut) {
+        return resolveBulkFromPair(["in", "out"], inTime, outTime, manualValue);
+      }
+
+      if (hasIn && hasHours) {
+        return resolveBulkFromPair(["in", "hours"], inTime, outTime, manualValue);
+      }
+
+      if (hasOut && hasHours) {
+        return resolveBulkFromPair(["out", "hours"], inTime, outTime, manualValue);
+      }
+
+      if (hasHours) {
+        return {
+          finalIn: inTime,
+          finalOut: outTime,
+          finalHours: manualValue,
+          useHours: true
+        };
+      }
+
+      if (hasIn || hasOut) {
+        return {
+          error: "For bulk time entry, fill any two of IN / OUT / Hours.",
+          finalIn: inTime,
+          finalOut: outTime,
+          finalHours: 0,
+          useHours: false
+        };
+      }
+
+      return {
+        finalIn: inTime,
+        finalOut: outTime,
+        finalHours: 0,
+        useHours: false
+      };
+    }
+
+    function autofillBulkFields(changedField) {
+      if (changedField === "in" && bulkInInput.value) {
+        const snapped = snapTimeToQuarter(bulkInInput.value);
+        if (snapped !== bulkInInput.value) {
+          bulkInInput.value = snapped;
+        }
+      }
+      if (changedField === "out" && bulkOutInput.value) {
+        const snapped = snapTimeToQuarter(bulkOutInput.value);
+        if (snapped !== bulkOutInput.value) {
+          bulkOutInput.value = snapped;
+        }
+      }
+      const inTime = String(bulkInInput.value || "");
+      const outTime = String(bulkOutInput.value || "");
+      const manualValue = safeNumber(bulkHoursInput.value);
+      const hasIn = bulkHasValue("in", inTime, outTime, manualValue);
+      const hasOut = bulkHasValue("out", inTime, outTime, manualValue);
+      const hasHours = bulkHasValue("hours", inTime, outTime, manualValue);
+      const changedHasValue = bulkHasValue(changedField, inTime, outTime, manualValue);
+
+      if (!changedHasValue) {
+        const activeField = bulkFieldFromElement(document.activeElement);
+        if (activeField === changedField) {
+          // Ignore transient empty states while the user is actively editing.
+          return;
+        }
+        if (
+          bulkAutoField === changedField ||
+          (Array.isArray(bulkReferencePair) && bulkReferencePair.includes(changedField))
+        ) {
+          resetBulkReferenceState();
+        }
+        return;
+      }
+
+      if (bulkAutoField && changedField === bulkAutoField) {
+        // User manually changed the previously auto-filled field.
+        resetBulkReferenceState();
+        return;
+      }
+
+      if (
+        Array.isArray(bulkReferencePair) &&
+        bulkReferencePair.length === 2 &&
+        bulkAutoField &&
+        bulkHasValue(bulkReferencePair[0], inTime, outTime, manualValue) &&
+        bulkHasValue(bulkReferencePair[1], inTime, outTime, manualValue)
+      ) {
+        const lockedResolved = resolveBulkFromPair(bulkReferencePair, inTime, outTime, manualValue);
+        if (!lockedResolved.error) {
+          applyResolvedBulkField(bulkAutoField, lockedResolved);
+          return;
+        }
+        resetBulkReferenceState();
+      }
+
+      const filledFields = [];
+      if (hasIn) {
+        filledFields.push("in");
+      }
+      if (hasOut) {
+        filledFields.push("out");
+      }
+      if (hasHours) {
+        filledFields.push("hours");
+      }
+
+      if (filledFields.length !== 2) {
+        if (filledFields.length < 2) {
+          resetBulkReferenceState();
+        }
+        return;
+      }
+
+      const missingField = ["in", "out", "hours"].find((field) => !filledFields.includes(field));
+      if (!missingField) {
+        return;
+      }
+
+      const resolved = resolveBulkFromPair(filledFields, inTime, outTime, manualValue);
+      if (resolved.error) {
+        resetBulkReferenceState();
+        return;
+      }
+
+      bulkReferencePair = [...filledFields];
+      bulkAutoField = missingField;
+      applyResolvedBulkField(missingField, resolved);
+    }
+
+    function buildPrintPages() {
+      const printContainer = document.getElementById("printPages");
+      const weekEnd = addDays(weekStart, 6);
+      const payPeriod = formatUsDate(weekStart) + " - " + formatUsDate(weekEnd);
+      const _generatedDate = formatUsDate(getNYCToday());
+
+      const pages = employees
+        .filter((employee) => employee.name.trim().length > 0)
+        .filter((employee) => hasPrintableWeekActivity(employee))
+        .map((employee) => {
+          const totals = employeeTotals(employee);
+          const weeklyTotal = totals.totalHours;
+          const weeklyTotalClock = formatHoursClock(weeklyTotal);
+          const hourlyRate = safeNumber(employee.rate);
+          const overtimeHours = Math.max(0, weeklyTotal - 40);
+          const regularHours = Math.max(0, weeklyTotal - overtimeHours);
+          const overtimeClock = overtimeHours > 0 ? formatHoursClockCompact(overtimeHours) : "";
+          const regularClock = formatHoursClock(regularHours);
+          const regularPay = regularHours * hourlyRate;
+          const overtimePay = overtimeHours * hourlyRate * 1.5;
+          const commissionsPay = Math.max(0, safeNumber(totals.totalCommissions));
+          const gross = regularPay + overtimePay + commissionsPay;
+          const commissionPayText = commissionsPay > 0 ? formatMoneyCell(commissionsPay) : "";
+
+          let primaryCompanyIndex = payrollBucketForCompany(employee.payrollCompany);
+          let primaryCompanyHours = -1;
+          for (let idx = 0; idx < 3; idx += 1) {
+            const companyHours = safeNumber(totals.companyTotals[idx]);
+            if (companyHours > primaryCompanyHours) {
+              primaryCompanyHours = companyHours;
+              primaryCompanyIndex = idx;
+            }
+          }
+
+          const dayRows = [];
+          DAY_NAMES.forEach((dayName, dayIndex) => {
+            const dayDate = addDays(weekStart, dayIndex);
+            const day = employee.days[dayIndex];
+            const segments = [];
+
+            for (let companyIndex = 0; companyIndex < 3; companyIndex += 1) {
+              const slot = day.companyTimes[companyIndex];
+              const hours = safeNumber(day.hours[companyIndex]);
+              const commission = safeNumber(day.commissions[companyIndex]);
+              const hasTime = !!slot.inTime || !!slot.outTime;
+              if (hours > 0 || hasTime || commission > 0) {
+                segments.push({
+                  companyIndex,
+                  inTime: slot.inTime,
+                  outTime: slot.outTime,
+                  hasWork: hours > 0 || hasTime,
+                  commission
+                });
+              }
+            }
+
+            if (segments.length === 0) {
+              if (overtimeHours > 0 && dayIndex === 6) {
+                return;
+              }
+              dayRows.push(
+                "<tr>" +
+                  '<td class="day-col">' + dayName + "</td>" +
+                  '<td class="date-col">' + formatUsShortDate(dayDate) + "</td>" +
+                  '<td class="dept-col"></td>' +
+                  '<td class="time-col"></td>' +
+                  '<td class="time-col"></td>' +
+                  '<td class="num-col"></td>' +
+                  '<td class="num-col"></td>' +
+                  '<td class="comm-col"></td>' +
+                  '<td class="notes-col"></td>' +
+                  '<td class="total-col-cell"></td>' +
+                "</tr>"
+              );
+              return;
+            }
+
+            const dayTotalValue = dayTotal(day);
+            const dayTotalClock = dayTotalValue > 0 ? formatHoursClock(dayTotalValue) : "";
+            const lastWorkSegmentIndex = (() => {
+              for (let i = segments.length - 1; i >= 0; i -= 1) {
+                if (segments[i].hasWork) {
+                  return i;
+                }
+              }
+              return -1;
+            })();
+            const noteAnchorIndex = (() => {
+              for (let i = 0; i < segments.length; i += 1) {
+                if (safeNumber(segments[i].commission) > 0) {
+                  return i;
+                }
+              }
+              return 0;
+            })();
+            segments.forEach((segment, segIdx) => {
+              const showDayMeta = segIdx === 0;
+              const totalSegmentIndex = lastWorkSegmentIndex >= 0 ? lastWorkSegmentIndex : segments.length - 1;
+              const showTotals = segIdx === totalSegmentIndex;
+              const regText = showTotals ? dayTotalClock : "";
+              const totalText = showTotals ? dayTotalClock : "";
+              const commissionText = segment.commission > 0 ? formatMoneyCell(segment.commission) : "";
+              const noteText = segIdx === noteAnchorIndex ? escapeHtml(day.note || "") : "";
+              dayRows.push(
+                "<tr>" +
+                  '<td class="day-col">' + (showDayMeta ? dayName : "") + "</td>" +
+                  '<td class="date-col">' + (showDayMeta ? formatUsShortDate(dayDate) : "") + "</td>" +
+                  '<td class="dept-col">' + escapeHtml(printDeptLabel(segment.companyIndex)) + "</td>" +
+                  '<td class="time-col">' + escapeHtml(formatTime12(segment.inTime)) + "</td>" +
+                  '<td class="time-col">' + escapeHtml(formatTime12(segment.outTime)) + "</td>" +
+                  '<td class="num-col">' + regText + "</td>" +
+                  '<td class="num-col"></td>' +
+                  '<td class="comm-col">' + commissionText + "</td>" +
+                  '<td class="notes-col">' + noteText + "</td>" +
+                  '<td class="total-col-cell">' + totalText + "</td>" +
+                "</tr>"
+              );
+            });
+          });
+
+          if (overtimeHours > 0) {
+            dayRows.push(
+              "<tr>" +
+                '<td class="day-col">Fri</td>' +
+                '<td class="date-col">' + formatUsShortDate(weekEnd) + "</td>" +
+                '<td class="dept-col">' + escapeHtml(printDeptLabel(primaryCompanyIndex)) + "</td>" +
+                '<td class="time-col">WEEKLY OVERTIME</td>' +
+                '<td class="time-col"></td>' +
+                '<td class="num-col">' + formatHoursClockCompact(-overtimeHours) + "</td>" +
+                '<td class="num-col print-ot-blue">' + overtimeClock + "</td>" +
+                '<td class="comm-col"></td>' +
+                '<td class="notes-col"></td>' +
+                '<td class="total-col-cell"></td>' +
+              "</tr>"
+            );
+          }
+
+          const departmentRows = [];
+          const departmentOrder = [0, 1, 2]
+            .filter((idx) => safeNumber(totals.companyTotals[idx]) > 0)
+            .sort((a, b) => safeNumber(totals.companyTotals[b]) - safeNumber(totals.companyTotals[a]));
+          departmentOrder.forEach((companyIndex) => {
+            departmentRows.push(
+              "<tr>" +
+                "<td>" + escapeHtml(printDeptLabel(companyIndex)) + "</td>" +
+                "<td>" + escapeHtml(printDeptTransferLabel(companyIndex)) + "</td>" +
+                "<td>" + formatHoursClock(totals.companyTotals[companyIndex]) + "</td>" +
+                "<td></td>" +
+                "<td></td>" +
+                "<td></td>" +
+                "<td></td>" +
+              "</tr>"
+            );
+          });
+          if (departmentRows.length === 0) {
+            departmentRows.push(
+              "<tr><td></td><td></td><td>0:00</td><td></td><td></td><td></td><td></td></tr>"
+            );
+          }
+
+          return (
+            '<section class="print-page">' +
+              '<div class="report-card">' +
+                '<p class="print-title-line"><span class="print-title-blue">Timecard Report</span></p>' +
+                '<p class="print-employee-name">' + escapeHtml(employee.name) + "</p>" +
+                '<p class="print-period-line"><span class="print-period-blue">Pay Period:</span> ' + payPeriod + "</p>" +
+                '<table class="print-main-table">' +
+                  "<thead>" +
+                    "<tr>" +
+                      "<th></th>" +
+                      "<th>Date</th>" +
+                      "<th>Department</th>" +
+                      "<th>IN</th>" +
+                      "<th>OUT</th>" +
+                      "<th>REG</th>" +
+                      "<th>OT1</th>" +
+                      "<th>Commissions</th>" +
+                      '<th class="notes-col-head">Notes</th>' +
+                      "<th>TOTAL</th>" +
+                    "</tr>" +
+                  "</thead>" +
+                  "<tbody>" + dayRows.join("") + "</tbody>" +
+                "</table>" +
+                '<div class="print-hours-worked">Hours Worked&nbsp;&nbsp;Week 1: ' + weeklyTotalClock + "</div>" +
+                '<table class="print-summary-table">' +
+                  "<thead>" +
+                    "<tr>" +
+                      "<th></th>" +
+                      "<th>REG</th>" +
+                      "<th>OT1</th>" +
+                      "<th>Commissions</th>" +
+                      "<th>TOTAL</th>" +
+                    "</tr>" +
+                  "</thead>" +
+                  "<tbody>" +
+                    "<tr>" +
+                      '<td class="label">Total Hours</td>' +
+                      "<td>" + regularClock + "</td>" +
+                      "<td>" + overtimeClock + "</td>" +
+                      "<td></td>" +
+                      "<td>" + weeklyTotalClock + "</td>" +
+                    "</tr>" +
+                    "<tr>" +
+                      '<td class="label">Gross Pay</td>' +
+                      "<td>" + formatMoneyCell(regularPay) + "</td>" +
+                      "<td>" + formatMoneyCell(overtimePay) + "</td>" +
+                      "<td>" + commissionPayText + "</td>" +
+                      "<td>" + formatMoneyCell(gross) + "</td>" +
+                    "</tr>" +
+                  "</tbody>" +
+                "</table>" +
+                '<table class="print-dept-table">' +
+                  "<thead>" +
+                    "<tr><th>DEPT</th><th>DEPARTMENT TRANSFER</th><th>TOTAL</th><th>PAY CODE</th><th>ACCRUED</th><th>USED</th><th>AVAIL</th></tr>" +
+                  "</thead>" +
+                  "<tbody>" + departmentRows.join("") + "</tbody>" +
+                "</table>" +
+                '<div class="print-sign-row">' +
+                  "<span>Approved By / Date</span>" +
+                  "<span>Employee / Date</span>" +
+                "</div>" +
+              "</div>" +
+            "</section>"
+          );
+        });
+
+      if (pages.length === 0) {
+        printContainer.innerHTML =
+          '<section class="print-page"><div class="report-card"><h2>No employees with hours or commissions to print.</h2></div></section>';
+        return false;
+      }
+
+      printContainer.innerHTML = pages.join("");
+      return true;
+    }
+
+    function printToPdf() {
+      const ready = buildPrintPages();
+      if (!ready) {
+        setActionHint("No named employees available to print.", true);
+        return;
+      }
+      setActionHint("Opening print dialog. Choose Save as PDF.", false);
+      window.print();
+    }
+
+    function workspaceStatePayload() {
+      const weekEnd = addDays(weekStart, 6);
+      return {
+        week_start: formatIsoDate(weekStart),
+        week_end: formatIsoDate(weekEnd),
+        pay_period: payPeriodText.textContent,
+        period_note: periodNoteInput.value.trim(),
+        employees: employees
+          .filter((employee) => employee.name.trim().length > 0)
+          .map((employee) => ({
+            name: employee.name,
+            payrollCompany: employee.payrollCompany,
+            rate: safeNumber(employee.rate),
+            days: employee.days.map((day) => ({
+              companyTimes: day.companyTimes.map((slot) => ({
+                inTime: String(slot.inTime || ""),
+                outTime: String(slot.outTime || "")
+              })),
+              hours: day.hours.map((value) => safeNumber(value)),
+              commissions: day.commissions.map((value) => safeNumber(value)),
+              note: String(day.note || "")
+            }))
+          }))
+      };
+    }
+
+    function workspaceExportPayload() {
+      return workspaceStatePayload();
+    }
+
+    function formatSavedPeriodLabel(period) {
+      const weekStartText = String(period.week_start || "");
+      const weekEndText = String(period.week_end || "");
+      const note = String(period.period_note || "").trim();
+      const updatedAt = Number(period.updated_at || 0);
+      const start = parseIsoDate(weekStartText);
+      const end = parseIsoDate(weekEndText);
+      const range = start && end
+        ? formatUsShortDate(start) + " - " + formatUsShortDate(end)
+        : weekStartText || "Saved Week";
+      const when = updatedAt > 0
+        ? new Date(updatedAt * 1000).toLocaleDateString()
+        : "";
+      if (note) {
+        return range + " | " + note;
+      }
+      if (when) {
+        return range + " | updated " + when;
+      }
+      return range;
+    }
+
+    function applyWorkspacePayload(payload) {
+      if (!payload || typeof payload !== "object") {
+        return false;
+      }
+      const start = parseIsoDate(String(payload.week_start || ""));
+      if (start) {
+        setWeekStart(start, false);
+      }
+      periodNoteInput.value = String(payload.period_note || "");
+
+      const rows = Array.isArray(payload.employees) ? payload.employees : [];
+      employees = rows
+        .filter((item) => item && typeof item === "object")
+        .map((item) => {
+          const preferredCompany = String(item.payrollCompany || "");
+          const payrollCompany = PAYROLL_COMPANIES.includes(preferredCompany)
+            ? preferredCompany
+            : mapRosterCompany(item);
+          return newEmployee({
+            name: String(item.name || ""),
+            payrollCompany,
+            rate: safeNumber(item.rate),
+            commissionsByCompany: Array.isArray(item.commissionsByCompany)
+              ? item.commissionsByCompany.map((value) => safeNumber(value))
+              : [0, 0, 0],
+            days: Array.isArray(item.days) ? item.days : DAY_NAMES.map(() => ({})),
+            expanded: false,
+            selected: false
+          });
+        });
+      renderTable();
+      return true;
+    }
+
+    async function loadSavedPeriods(selectedPeriodId) {
+      try {
+        const response = await fetch("/api/workspace/periods");
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return [];
+        }
+        if (!response.ok) {
+          return [];
+        }
+        const payload = await response.json();
+        const periods = Array.isArray(payload.periods) ? payload.periods : [];
+
+        const currentValue = selectedPeriodId
+          ? String(selectedPeriodId)
+          : String(historySelect.value || "");
+        historySelect.innerHTML = '<option value="">Saved Weeks</option>';
+        periods.forEach((period) => {
+          const option = document.createElement("option");
+          option.value = String(period.id);
+          option.textContent = formatSavedPeriodLabel(period);
+          historySelect.appendChild(option);
+        });
+        if (currentValue && periods.some((period) => String(period.id) === currentValue)) {
+          historySelect.value = currentValue;
+        } else if (periods.length > 0) {
+          historySelect.value = String(periods[0].id);
+        }
+        return periods;
+      } catch {
+        return [];
+      }
+    }
+
+    async function loadSavedWeekById(periodId, silent) {
+      const idText = String(periodId || "").trim();
+      if (!idText) {
+        if (!silent) {
+          setActionHint("Select a saved week first.", true);
+        }
+        return false;
+      }
+      try {
+        const response = await fetch("/api/workspace/periods/" + encodeURIComponent(idText));
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return false;
+        }
+        if (!response.ok) {
+          let message = "Failed to load saved week.";
+          try {
+            const payload = await response.json();
+            if (payload && payload.error) {
+              message = String(payload.error);
+            }
+          } catch {}
+          if (!silent) {
+            setActionHint(message, true);
+          }
+          return false;
+        }
+        const payload = await response.json();
+        const period = payload.period || {};
+        const state = period.payload && typeof period.payload === "object"
+          ? period.payload
+          : period;
+        const loaded = applyWorkspacePayload(state);
+        if (!loaded) {
+          if (!silent) {
+            setActionHint("Saved payload was invalid.", true);
+          }
+          return false;
+        }
+        if (period.id) {
+          historySelect.value = String(period.id);
+        }
+        if (!silent) {
+          setActionHint("Loaded saved payroll week.", false);
+        }
+        return true;
+      } catch (error) {
+        if (!silent) {
+          const message = error instanceof Error ? error.message : String(error);
+          setActionHint("Failed to load saved week: " + message, true);
+        }
+        return false;
+      }
+    }
+
+    async function saveCurrentWeek() {
+      const state = workspaceStatePayload();
+      setActionHint("Saving payroll week...", false);
+      try {
+        const response = await fetch("/api/workspace/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(state)
+        });
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok) {
+          let message = "Save failed.";
+          try {
+            const payload = await response.json();
+            if (payload && payload.error) {
+              message = String(payload.error);
+            }
+          } catch {
+            const text = await response.text();
+            if (text) {
+              message = text;
+            }
+          }
+          setActionHint(message, true);
+          return;
+        }
+        const payload = await response.json();
+        await loadSavedPeriods(payload.period_id);
+        setActionHint("Saved payroll week.", false);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setActionHint("Save failed: " + message, true);
+      }
+    }
+
+    async function logoutWorkspace() {
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+      } catch {
+        // Redirect regardless so a stale/expired session still exits cleanly.
+      }
+      window.location.href = "/login";
+    }
+
+    function contentDispositionFilename(value) {
+      const header = String(value || "");
+      const utf8Match = header.match(/filename\*=UTF-8''([^;]+)/i);
+      if (utf8Match && utf8Match[1]) {
+        try {
+          return decodeURIComponent(utf8Match[1].trim());
+        } catch {
+          return utf8Match[1].trim();
+        }
+      }
+      const basicMatch = header.match(/filename=\"?([^\";]+)\"?/i);
+      if (basicMatch && basicMatch[1]) {
+        return basicMatch[1].trim();
+      }
+      return "";
+    }
+
+    async function exportFilledWorkbook() {
+      if (!employees.some((employee) => employee.name.trim().length > 0)) {
+        setActionHint("No named employees available to export.", true);
+        return;
+      }
+
+      setActionHint("Exporting filled workbook...", false);
+      try {
+        const response = await fetch("/api/workspace/export-xlsx", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(workspaceExportPayload())
+        });
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+
+        if (!response.ok) {
+          let message = "Export failed.";
+          try {
+            const payload = await response.json();
+            if (payload && payload.error) {
+              message = String(payload.error);
+            }
+          } catch {
+            const text = await response.text();
+            if (text) {
+              message = text;
+            }
+          }
+          setActionHint(message, true);
+          return;
+        }
+
+        const blob = await response.blob();
+        const fromHeader = contentDispositionFilename(response.headers.get("Content-Disposition"));
+        const filename = fromHeader || "payroll_workspace_filled.xlsx";
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        setActionHint("Downloaded filled workbook: " + filename, false);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setActionHint("Export failed: " + message, true);
+      }
+    }
+
+    async function loadEmployeesFromRoster() {
+      try {
+        let response = await fetch("/api/workspace/employees");
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return false;
+        }
+        if (!response.ok) {
+          response = await fetch("/api/employees");
+        }
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return false;
+        }
+        if (!response.ok) {
+          return false;
+        }
+        const payload = await response.json();
+        const rows = Array.isArray(payload.employees) ? payload.employees : [];
+        if (rows.length === 0) {
+          return false;
+        }
+
+        employees = rows.map((item) =>
+          newEmployee({
+            name: String(item.name || ""),
+            payrollCompany: mapRosterCompany(item),
+            rate: safeNumber(item.rate),
+            commissionsByCompany: [0, 0, 0],
+            days: DAY_NAMES.map(() => ({
+              companyTimes: [
+                { inTime: "", outTime: "" },
+                { inTime: "", outTime: "" },
+                { inTime: "", outTime: "" }
+              ],
+              hours: [0, 0, 0],
+              commissions: [0, 0, 0],
+              note: ""
+            })),
+            expanded: false
+          })
+        );
+        renderTable();
+        setActionHint("Loaded " + rows.length + " employees from roster/template.", false);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    tbody.addEventListener("click", (event) => {
+      const toggleButton = event.target.closest('button[data-action="toggle"]');
+      if (!toggleButton) {
+        return;
+      }
+      const employeeId = Number(toggleButton.dataset.id);
+      if (!employeeId) {
+        return;
+      }
+      toggleEmployeeDetails(employeeId);
+    });
+
+    tbody.addEventListener("change", (event) => {
+      const target = event.target;
+      const field = target.dataset.field;
+      const employeeId = Number(target.dataset.id);
+      if (!field || !employeeId) {
+        return;
+      }
+      const employee = findEmployee(employeeId);
+      if (!employee) {
+        return;
+      }
+
+      if (field === "selected") {
+        employee.selected = !!target.checked;
+        refreshSelectedEmployeePanel();
+        renderBulkSearchResults();
+        return;
+      }
+
+      if (field === "payrollCompany") {
+        if (!manageMode) {
+          target.value = employee.payrollCompany;
+          setActionHint("Turn on Manage mode to edit payroll company.", true);
+          return;
+        }
+        const value = String(target.value || "");
+        if (PAYROLL_COMPANIES.includes(value)) {
+          employee.payrollCompany = value;
+          const detailCompany = tbody.querySelector(
+            'tr.detail-row[data-id="' + employeeId + '"] .detail-payroll-company'
+          );
+          if (detailCompany) {
+            detailCompany.textContent = "Payroll Company: " + employee.payrollCompany;
+          }
+        }
+      }
+    });
+
+    tbody.addEventListener("input", (event) => {
+      const target = event.target;
+      const field = target.dataset.field;
+      const employeeId = Number(target.dataset.id);
+      if (!field || !employeeId) {
+        return;
+      }
+      const employee = findEmployee(employeeId);
+      if (!employee) {
+        return;
+      }
+
+      if (field === "name") {
+        if (!manageMode) {
+          setActionHint("Turn on Manage mode to edit employee names.", true);
+          target.value = employee.name;
+          return;
+        }
+        employee.name = String(target.value || "");
+        const detailHeader = tbody.querySelector(
+          'tr.detail-row[data-id="' + employeeId + '"] .detail-head strong'
+        );
+        if (detailHeader) {
+          detailHeader.textContent = employee.name || "Employee";
+        }
+        updateAllSummaries();
+        return;
+      }
+
+      if (field === "rate") {
+        if (!manageMode) {
+          setActionHint("Turn on Manage mode to edit hourly rate.", true);
+          target.value = employee.rate.toFixed(2);
+          return;
+        }
+        employee.rate = safeNumber(target.value);
+        updateAllSummaries();
+        return;
+      }
+
+      if (field === "day-comm") {
+        const dayIndex = Number(target.dataset.day);
+        const companyIndex = Number(target.dataset.company);
+        if (dayIndex >= 0 && dayIndex < 7 && companyIndex >= 0 && companyIndex < 3) {
+          employee.days[dayIndex].commissions[companyIndex] = safeNumber(target.value);
+        }
+        employee.commissionsByCompany = commissionTotalsByCompany(employee);
+        updateEmployeeSummaryCells(employeeId);
+        updateAllSummaries();
+        return;
+      }
+
+      if (field === "hour") {
+        const dayIndex = Number(target.dataset.day);
+        const companyIndex = Number(target.dataset.company);
+        if (dayIndex >= 0 && dayIndex < 7 && companyIndex >= 0 && companyIndex < 3) {
+          employee.days[dayIndex].hours[companyIndex] = safeNumber(target.value);
+          applyTimeAutofill(employee, dayIndex, companyIndex, "hour");
+          updateEmployeeSummaryCells(employeeId);
+          updateAllSummaries();
+        }
+        return;
+      }
+
+      if (field === "company-in-time") {
+        const dayIndex = Number(target.dataset.day);
+        const companyIndex = Number(target.dataset.company);
+        if (dayIndex >= 0 && dayIndex < 7 && companyIndex >= 0 && companyIndex < 3) {
+          const snapped = snapTimeToQuarter(String(target.value || ""));
+          if (snapped !== target.value) {
+            target.value = snapped;
+          }
+          employee.days[dayIndex].companyTimes[companyIndex].inTime = snapped;
+          applyTimeAutofill(employee, dayIndex, companyIndex, "company-in-time");
+          updateEmployeeSummaryCells(employeeId);
+          updateAllSummaries();
+        }
+        return;
+      }
+
+      if (field === "company-out-time") {
+        const dayIndex = Number(target.dataset.day);
+        const companyIndex = Number(target.dataset.company);
+        if (dayIndex >= 0 && dayIndex < 7 && companyIndex >= 0 && companyIndex < 3) {
+          const snapped = snapTimeToQuarter(String(target.value || ""));
+          if (snapped !== target.value) {
+            target.value = snapped;
+          }
+          employee.days[dayIndex].companyTimes[companyIndex].outTime = snapped;
+          applyTimeAutofill(employee, dayIndex, companyIndex, "company-out-time");
+          updateEmployeeSummaryCells(employeeId);
+          updateAllSummaries();
+        }
+        return;
+      }
+
+      if (field === "day-note") {
+        const dayIndex = Number(target.dataset.day);
+        if (dayIndex >= 0 && dayIndex < 7) {
+          employee.days[dayIndex].note = String(target.value || "");
+          resizeNoteArea(target);
+        }
+      }
+    });
+
+    bulkEmployeeSearchInput.addEventListener("focus", () => {
+      renderBulkSearchResults();
+    });
+
+    bulkEmployeeSearchInput.addEventListener("input", () => {
+      renderBulkSearchResults();
+    });
+
+    bulkEmployeeSearchInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") {
+        return;
+      }
+      event.preventDefault();
+      const matches = searchEmployees(bulkEmployeeSearchInput.value);
+      if (matches.length === 0) {
+        setActionHint("No matching employee found.", true);
+        return;
+      }
+      const targetEmployee = matches[0];
+      const shouldSelect = !targetEmployee.selected;
+      setEmployeeSelectedState(targetEmployee.id, shouldSelect);
+      setActionHint(
+        (shouldSelect ? "Selected " : "Unselected ") + (targetEmployee.name || "employee") + ".",
+        false
+      );
+    });
+
+    bulkEmployeeSearchInput.addEventListener("blur", () => {
+      setTimeout(() => renderBulkSearchResults(), 120);
+    });
+
+    bulkEmployeeSearchResults.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+    });
+
+    bulkEmployeeSearchResults.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-id]");
+      if (!button) {
+        return;
+      }
+      const employeeId = Number(button.dataset.id);
+      if (!employeeId) {
+        return;
+      }
+      const employee = findEmployee(employeeId);
+      if (!employee) {
+        return;
+      }
+      const shouldSelect = !employee.selected;
+      setEmployeeSelectedState(employeeId, shouldSelect);
+      setActionHint(
+        (shouldSelect ? "Selected " : "Unselected ") + (employee.name || "employee") + ".",
+        false
+      );
+      bulkEmployeeSearchInput.focus();
+    });
+
+    bulkSelectedNames.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-id]");
+      if (!button) {
+        return;
+      }
+      const employeeId = Number(button.dataset.id);
+      if (!employeeId) {
+        return;
+      }
+      setEmployeeSelectedState(employeeId, false);
+    });
+
+    bulkClearSelectedBtn.addEventListener("click", () => {
+      setSelectionForAll(false);
+    });
+
+    weekStartInput.addEventListener("change", () => {
+      const picked = parseIsoDate(weekStartInput.value) || getNYCToday();
+      setWeekStart(picked, true);
+      renderTable();
+    });
+
+    manageToggleBtn.addEventListener("click", () => {
+      manageMode = !manageMode;
+      syncManageControls();
+      renderTable();
+      setActionHint(
+        manageMode
+          ? "Manage mode ON. You can edit name/payroll company and add/remove rows."
+          : "Manage mode OFF. Name and payroll company are locked.",
+        false
+      );
+    });
+
+    addEmployeeBtn.addEventListener("click", () => {
+      if (!manageMode) {
+        setActionHint("Turn on Manage mode to add employees.", true);
+        return;
+      }
+      employees.push(createEmptyEmployee());
+      renderTable();
+      setActionHint("Added new employee row.", false);
+    });
+    duplicateBtn.addEventListener("click", duplicateSelected);
+    removeBtn.addEventListener("click", removeSelected);
+    sortableHeaders.forEach((header) => {
+      header.addEventListener("click", () => {
+        toggleSortByField(String(header.dataset.sort || ""));
+      });
+    });
+    document.getElementById("selectAllBtn").addEventListener("click", () => setSelectionForAll(true));
+    document.getElementById("clearSelBtn").addEventListener("click", () => setSelectionForAll(false));
+    document.getElementById("expandAllBtn").addEventListener("click", () => setAllExpanded(true));
+    document.getElementById("collapseAllBtn").addEventListener("click", () => setAllExpanded(false));
+    saveWeekBtn.addEventListener("click", saveCurrentWeek);
+    loadWeekBtn.addEventListener("click", () => loadSavedWeekById(historySelect.value, false));
+    historySelect.addEventListener("dblclick", () => loadSavedWeekById(historySelect.value, false));
+    logoutBtn.addEventListener("click", logoutWorkspace);
+    exportXlsxBtn.addEventListener("click", exportFilledWorkbook);
+    document.getElementById("printBtn").addEventListener("click", printToPdf);
+    document.getElementById("bulkApplyBtn").addEventListener("click", applyBulkToSelected);
+    bulkInInput.addEventListener("input", () => autofillBulkFields("in"));
+    bulkOutInput.addEventListener("input", () => autofillBulkFields("out"));
+    bulkHoursInput.addEventListener("input", () => autofillBulkFields("hours"));
+    bulkInInput.addEventListener("change", () => autofillBulkFields("in"));
+    bulkOutInput.addEventListener("change", () => autofillBulkFields("out"));
+    bulkHoursInput.addEventListener("change", () => autofillBulkFields("hours"));
+
+    refreshBulkCompanyOptions();
+    syncManageControls();
+    setWeekStart(weekStart, false);
+
+    (async () => {
+      const periods = await loadSavedPeriods();
+      if (periods.length > 0) {
+        const loadedSaved = await loadSavedWeekById(periods[0].id, true);
+        if (loadedSaved) {
+          setActionHint("Loaded latest saved payroll week.", false);
+          return;
+        }
+      }
+      const loadedRoster = await loadEmployeesFromRoster();
+      if (loadedRoster) {
+        return;
+      }
+      employees = [];
+      renderTable();
+      setActionHint(
+        "No employee roster/template names found. Turn on Manage mode to add employees.",
+        true
+      );
+    })();
+  </script>
+</body>
+</html>

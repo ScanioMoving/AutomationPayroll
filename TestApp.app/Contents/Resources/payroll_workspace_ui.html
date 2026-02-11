@@ -1,0 +1,1203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Payroll Weekly Sheet</title>
+  <style>
+    :root {
+      --bg: #f2f5f9;
+      --panel: #ffffff;
+      --line: #d6dfe8;
+      --text: #122337;
+      --muted: #607285;
+      --brand: #0f766e;
+      --brand-dark: #115e59;
+      --warn: #b7791f;
+      --danger: #b42318;
+      --header: #edf3f9;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .app {
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .topbar {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 23px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .top-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .link-btn {
+      display: inline-block;
+      border: 1px solid #9eb0c3;
+      background: #f9fcff;
+      color: #1f3850;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .period-bar {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .field {
+      min-width: 190px;
+    }
+
+    .field.small {
+      min-width: 150px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    input[type="date"],
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      border: 1px solid #c3d0dc;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 13px;
+      color: var(--text);
+      background: #fbfdff;
+    }
+
+    .period-chip {
+      border: 1px solid #c5d5e6;
+      border-radius: 8px;
+      background: #f5f9ff;
+      padding: 8px 10px;
+      font-size: 13px;
+      color: #27415a;
+      min-width: 220px;
+    }
+
+    .hint {
+      color: #825b1b;
+      font-size: 12px;
+      min-height: 16px;
+    }
+
+    .toolbar {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 1px solid var(--brand);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--brand);
+      color: #ffffff;
+    }
+
+    button.secondary {
+      background: #ffffff;
+      color: var(--brand-dark);
+      border-color: #95b7b2;
+    }
+
+    button.warning {
+      background: #fff8ed;
+      color: #995d0f;
+      border-color: #e6c495;
+    }
+
+    button.danger {
+      background: #fff2f2;
+      color: var(--danger);
+      border-color: #e8bbbb;
+    }
+
+    .toolbar-note {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .sheet-wrap {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: auto;
+      min-height: 0;
+    }
+
+    .sheet-table {
+      width: 100%;
+      min-width: 1650px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .sheet-table th,
+    .sheet-table td {
+      border-right: 1px solid #e6edf3;
+      border-bottom: 1px solid #e6edf3;
+      padding: 6px;
+      text-align: left;
+      vertical-align: middle;
+      background: #ffffff;
+    }
+
+    .sheet-table th:last-child,
+    .sheet-table td:last-child {
+      border-right: 0;
+    }
+
+    .sheet-table th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: var(--header);
+      color: #2a4259;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .sticky-left-1,
+    .sticky-left-2 {
+      position: sticky;
+      background: #ffffff;
+      z-index: 2;
+    }
+
+    .sticky-left-1 {
+      left: 0;
+    }
+
+    .sticky-left-2 {
+      left: 46px;
+    }
+
+    .sheet-table th.sticky-left-1,
+    .sheet-table th.sticky-left-2 {
+      z-index: 4;
+      background: var(--header);
+    }
+
+    .toggle-btn {
+      width: 30px;
+      min-width: 30px;
+      height: 30px;
+      padding: 0;
+      border-radius: 7px;
+      font-size: 15px;
+      line-height: 1;
+      background: #f5fbfa;
+      color: #1f5f57;
+      border-color: #a7cbc6;
+    }
+
+    .sheet-input {
+      width: 100%;
+      border: 1px solid #c5d2df;
+      border-radius: 7px;
+      padding: 7px 8px;
+      font-size: 13px;
+      color: var(--text);
+      background: #fbfdff;
+    }
+
+    .sheet-input.num {
+      text-align: right;
+      max-width: 125px;
+    }
+
+    .sheet-input.readonly {
+      background: #eef5ff;
+      border-color: #b8cbe0;
+      font-weight: 700;
+    }
+
+    .detail-row td {
+      background: #f9fcff;
+      padding: 10px;
+    }
+
+    .detail-row.collapsed {
+      display: none;
+    }
+
+    .detail-card {
+      border: 1px solid #d9e4ef;
+      border-radius: 10px;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    .detail-head {
+      background: #f4f8fd;
+      border-bottom: 1px solid #dde7f2;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: #4f6074;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      min-width: 900px;
+    }
+
+    .detail-table th,
+    .detail-table td {
+      border: 1px solid #e6edf4;
+      padding: 5px;
+      text-align: left;
+      background: #ffffff;
+    }
+
+    .detail-table th {
+      background: #eff5fb;
+      color: #385069;
+      position: static;
+      z-index: 1;
+      font-size: 11px;
+    }
+
+    .day-total {
+      font-weight: 700;
+      background: #f0f6ff;
+    }
+
+    .summary {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(140px, 1fr));
+      gap: 8px;
+    }
+
+    .stat {
+      border: 1px solid #d4dee9;
+      border-radius: 8px;
+      background: #f7fbff;
+      padding: 8px;
+    }
+
+    .stat .label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .stat .value {
+      margin-top: 2px;
+      font-size: 19px;
+      font-weight: 700;
+      color: #173451;
+    }
+
+    #printPages {
+      display: none;
+    }
+
+    .print-page {
+      padding: 14mm 12mm;
+      color: #111111;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      page-break-after: always;
+    }
+
+    .print-page:last-child {
+      page-break-after: auto;
+    }
+
+    .print-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #b9c4cf;
+      padding-bottom: 8px;
+    }
+
+    .print-title {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      color: #1d2f46;
+    }
+
+    .print-sub {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: #3f5166;
+    }
+
+    .print-meta {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(220px, 1fr));
+      gap: 6px 12px;
+      font-size: 12px;
+    }
+
+    .print-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin-top: 8px;
+    }
+
+    .print-table th,
+    .print-table td {
+      border: 1px solid #bfc9d4;
+      padding: 4px;
+      text-align: left;
+    }
+
+    .print-table th {
+      background: #edf2f8;
+      color: #2f4358;
+      font-weight: 700;
+    }
+
+    .print-table tfoot td {
+      font-weight: 700;
+      background: #f4f8ff;
+    }
+
+    .print-foot {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(180px, 1fr));
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .print-foot div {
+      border: 1px solid #c0cad6;
+      background: #f8fbff;
+      border-radius: 6px;
+      padding: 6px;
+    }
+
+    @media (max-width: 1080px) {
+      .summary {
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .title {
+        font-size: 19px;
+      }
+
+      .app {
+        padding: 8px;
+      }
+
+      .period-chip {
+        min-width: 160px;
+      }
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+      }
+
+      .app {
+        display: none !important;
+      }
+
+      #printPages {
+        display: block !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div>
+        <h1 class="title">Payroll Weekly Sheet</h1>
+        <p class="subtitle">Weekly entry model. Pay period is always Saturday to Friday.</p>
+      </div>
+      <div class="top-links">
+        <a class="link-btn" href="/converter">Open CSV Converter</a>
+      </div>
+    </div>
+
+    <div class="period-bar">
+      <div class="field small">
+        <label>Week Start (Saturday)</label>
+        <input type="date" id="weekStartInput" />
+      </div>
+      <div class="period-chip"><strong>Week End (Friday):</strong> <span id="weekEndText">-</span></div>
+      <div class="period-chip"><strong>Pay Period:</strong> <span id="payPeriodText">-</span></div>
+      <div class="field" style="flex:1; min-width:250px;">
+        <label>Period Note (optional)</label>
+        <input type="text" id="periodNoteInput" placeholder="Example: Week 02.08.26 - 02.14.26" />
+      </div>
+      <div class="hint" id="weekHint"></div>
+    </div>
+
+    <div class="toolbar">
+      <button id="addEmployeeBtn" type="button">Add Employee</button>
+      <button id="duplicateBtn" class="secondary" type="button">Duplicate Selected</button>
+      <button id="removeBtn" class="danger" type="button">Remove Selected</button>
+      <button id="expandAllBtn" class="secondary" type="button">Expand All</button>
+      <button id="collapseAllBtn" class="secondary" type="button">Collapse All</button>
+      <button id="loadDemoBtn" class="secondary" type="button">Reload Demo</button>
+      <button id="printBtn" class="warning" type="button">Print to PDF</button>
+      <span class="toolbar-note">Daily rows drive weekly totals. Company columns use payroll company names.</span>
+    </div>
+
+    <div class="sheet-wrap">
+      <table class="sheet-table">
+        <thead>
+          <tr>
+            <th class="sticky-left-1" style="width:46px;">Sel</th>
+            <th class="sticky-left-2" style="width:62px;">Days</th>
+            <th style="width:240px;">Employee Name</th>
+            <th style="width:190px;">Payroll Company</th>
+            <th id="headerCompany0" style="width:145px;">Scanio Moving Hrs</th>
+            <th id="headerCompany1" style="width:145px;">Scanio Storage Hrs</th>
+            <th id="headerCompany2" style="width:145px;">Sea and Air Int-L Hrs</th>
+            <th id="headerCompany3" style="width:145px;">Flat Price Hrs</th>
+            <th style="width:135px;">Total Hours</th>
+            <th style="width:135px;">Hourly Rate</th>
+            <th style="width:145px;">Commissions</th>
+          </tr>
+        </thead>
+        <tbody id="payrollBody"></tbody>
+      </table>
+    </div>
+
+    <div class="summary">
+      <div class="stat">
+        <div class="label">Employees</div>
+        <div class="value" id="sumEmployees">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Total Hours</div>
+        <div class="value" id="sumHours">0.00</div>
+      </div>
+      <div class="stat">
+        <div class="label">Total Commissions</div>
+        <div class="value" id="sumCommissions">$0.00</div>
+      </div>
+      <div class="stat">
+        <div class="label">Total Payroll Base</div>
+        <div class="value" id="sumBase">$0.00</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="printPages"></div>
+
+  <script>
+    const COMPANY_NAMES = [
+      "Scanio Moving",
+      "Scanio Storage",
+      "Sea and Air Int-L",
+      "Flat Price"
+    ];
+    const DAY_NAMES = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
+
+    const tbody = document.getElementById("payrollBody");
+    const weekStartInput = document.getElementById("weekStartInput");
+    const weekEndText = document.getElementById("weekEndText");
+    const payPeriodText = document.getElementById("payPeriodText");
+    const weekHint = document.getElementById("weekHint");
+    const periodNoteInput = document.getElementById("periodNoteInput");
+
+    let employees = [];
+    let nextEmployeeId = 1;
+    let weekStart = snapToSaturday(new Date());
+
+    function pad2(value) {
+      return String(value).padStart(2, "0");
+    }
+
+    function formatIsoDate(date) {
+      const y = date.getFullYear();
+      const m = pad2(date.getMonth() + 1);
+      const d = pad2(date.getDate());
+      return y + "-" + m + "-" + d;
+    }
+
+    function formatUsDate(date) {
+      return pad2(date.getMonth() + 1) + "/" + pad2(date.getDate()) + "/" + date.getFullYear();
+    }
+
+    function parseIsoDate(value) {
+      if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return null;
+      }
+      const [year, month, day] = value.split("-").map(Number);
+      const date = new Date(year, month - 1, day);
+      if (Number.isNaN(date.getTime())) {
+        return null;
+      }
+      return date;
+    }
+
+    function addDays(date, days) {
+      const out = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      out.setDate(out.getDate() + days);
+      return out;
+    }
+
+    function snapToSaturday(date) {
+      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const shift = (d.getDay() + 1) % 7;
+      d.setDate(d.getDate() - shift);
+      return d;
+    }
+
+    function safeNumber(value) {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function newDayEntry(seed) {
+      const hours = [0, 0, 0, 0];
+      if (seed && Array.isArray(seed.hours)) {
+        for (let idx = 0; idx < 4; idx += 1) {
+          hours[idx] = safeNumber(seed.hours[idx]);
+        }
+      }
+      return {
+        hours,
+        note: seed && typeof seed.note === "string" ? seed.note : ""
+      };
+    }
+
+    function newEmployee(seed) {
+      const employee = {
+        id: nextEmployeeId++,
+        selected: false,
+        expanded: true,
+        name: "",
+        payrollCompany: COMPANY_NAMES[0],
+        rate: 0,
+        commissions: 0,
+        days: DAY_NAMES.map(() => newDayEntry())
+      };
+
+      if (seed && typeof seed === "object") {
+        employee.name = String(seed.name || "");
+        if (COMPANY_NAMES.includes(seed.payrollCompany)) {
+          employee.payrollCompany = seed.payrollCompany;
+        }
+        employee.rate = safeNumber(seed.rate);
+        employee.commissions = safeNumber(seed.commissions);
+        employee.expanded = seed.expanded !== false;
+        employee.selected = !!seed.selected;
+        if (Array.isArray(seed.days)) {
+          employee.days = DAY_NAMES.map((_, idx) => newDayEntry(seed.days[idx]));
+        }
+      }
+
+      return employee;
+    }
+
+    function findEmployee(id) {
+      return employees.find((item) => item.id === id) || null;
+    }
+
+    function employeeTotals(employee) {
+      const companyTotals = [0, 0, 0, 0];
+      employee.days.forEach((day) => {
+        for (let idx = 0; idx < 4; idx += 1) {
+          companyTotals[idx] += safeNumber(day.hours[idx]);
+        }
+      });
+      const totalHours = companyTotals.reduce((acc, value) => acc + value, 0);
+      return { companyTotals, totalHours };
+    }
+
+    function renderCompanySelect(employeeId, selectedCompany) {
+      const options = COMPANY_NAMES.map((company) => {
+        const selected = company === selectedCompany ? " selected" : "";
+        return "<option" + selected + ">" + escapeHtml(company) + "</option>";
+      }).join("");
+      return (
+        '<select class="sheet-input" data-field="payrollCompany" data-id="' +
+        employeeId +
+        '">' +
+        options +
+        "</select>"
+      );
+    }
+
+    function renderSummaryRow(employee) {
+      const totals = employeeTotals(employee);
+      const toggleIcon = employee.expanded ? "▾" : "▸";
+      return (
+        '<tr class="summary-row" data-row="summary" data-id="' + employee.id + '">' +
+          '<td class="sticky-left-1">' +
+            '<input type="checkbox" data-field="selected" data-id="' + employee.id + '"' +
+              (employee.selected ? " checked" : "") +
+            " />" +
+          "</td>" +
+          '<td class="sticky-left-2">' +
+            '<button type="button" class="toggle-btn" data-action="toggle" data-id="' + employee.id + '">' +
+              toggleIcon +
+            "</button>" +
+          "</td>" +
+          "<td>" +
+            '<input type="text" class="sheet-input" data-field="name" data-id="' + employee.id + '" value="' + escapeHtml(employee.name) + '" placeholder="Employee name" />' +
+          "</td>" +
+          "<td>" + renderCompanySelect(employee.id, employee.payrollCompany) + "</td>" +
+          "<td><input type=\"number\" class=\"sheet-input num readonly\" data-cell=\"company-total-0\" data-id=\"" + employee.id + "\" readonly value=\"" + totals.companyTotals[0].toFixed(2) + "\" /></td>" +
+          "<td><input type=\"number\" class=\"sheet-input num readonly\" data-cell=\"company-total-1\" data-id=\"" + employee.id + "\" readonly value=\"" + totals.companyTotals[1].toFixed(2) + "\" /></td>" +
+          "<td><input type=\"number\" class=\"sheet-input num readonly\" data-cell=\"company-total-2\" data-id=\"" + employee.id + "\" readonly value=\"" + totals.companyTotals[2].toFixed(2) + "\" /></td>" +
+          "<td><input type=\"number\" class=\"sheet-input num readonly\" data-cell=\"company-total-3\" data-id=\"" + employee.id + "\" readonly value=\"" + totals.companyTotals[3].toFixed(2) + "\" /></td>" +
+          "<td><input type=\"number\" class=\"sheet-input num readonly\" data-cell=\"total-hours\" data-id=\"" + employee.id + "\" readonly value=\"" + totals.totalHours.toFixed(2) + "\" /></td>" +
+          '<td><input type="number" class="sheet-input num" data-field="rate" data-id="' + employee.id + '" min="0" step="0.01" value="' + employee.rate.toFixed(2) + '" /></td>' +
+          '<td><input type="number" class="sheet-input num" data-field="commissions" data-id="' + employee.id + '" min="0" step="0.01" value="' + employee.commissions.toFixed(2) + '" /></td>' +
+        "</tr>"
+      );
+    }
+
+    function renderDetailRows(employee) {
+      const rows = DAY_NAMES.map((dayName, dayIndex) => {
+        const dayDate = addDays(weekStart, dayIndex);
+        const dayData = employee.days[dayIndex];
+        const dayTotal = dayData.hours.reduce((acc, value) => acc + safeNumber(value), 0);
+        return (
+          "<tr>" +
+            "<td>" + dayName + "</td>" +
+            "<td>" + formatUsDate(dayDate) + "</td>" +
+            '<td><input type="number" class="sheet-input num" data-field="hour" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="0" min="0" step="0.25" value="' + safeNumber(dayData.hours[0]).toFixed(2) + '" /></td>' +
+            '<td><input type="number" class="sheet-input num" data-field="hour" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="1" min="0" step="0.25" value="' + safeNumber(dayData.hours[1]).toFixed(2) + '" /></td>' +
+            '<td><input type="number" class="sheet-input num" data-field="hour" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="2" min="0" step="0.25" value="' + safeNumber(dayData.hours[2]).toFixed(2) + '" /></td>' +
+            '<td><input type="number" class="sheet-input num" data-field="hour" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="3" min="0" step="0.25" value="' + safeNumber(dayData.hours[3]).toFixed(2) + '" /></td>' +
+            '<td><input type="number" class="sheet-input num readonly day-total" data-cell="day-total" data-id="' + employee.id + '" data-day="' + dayIndex + '" readonly value="' + dayTotal.toFixed(2) + '" /></td>' +
+            '<td><input type="text" class="sheet-input" data-field="day-note" data-id="' + employee.id + '" data-day="' + dayIndex + '" value="' + escapeHtml(dayData.note) + '" placeholder="optional note" /></td>' +
+          "</tr>"
+        );
+      }).join("");
+
+      return (
+        '<tr class="detail-row' + (employee.expanded ? "" : " collapsed") + '" data-row="detail" data-id="' + employee.id + '">' +
+          '<td colspan="11">' +
+            '<div class="detail-card">' +
+              '<div class="detail-head">' +
+                "<span><strong>" + escapeHtml(employee.name || "Employee") + "</strong> daily hours (Saturday-Friday)</span>" +
+                '<span class="detail-payroll-company">Payroll Company: ' + escapeHtml(employee.payrollCompany) + "</span>" +
+              "</div>" +
+              '<table class="detail-table">' +
+                "<thead>" +
+                  "<tr>" +
+                    "<th style=\"width:70px;\">Day</th>" +
+                    "<th style=\"width:120px;\">Date</th>" +
+                    "<th>" + escapeHtml(COMPANY_NAMES[0]) + " Hrs</th>" +
+                    "<th>" + escapeHtml(COMPANY_NAMES[1]) + " Hrs</th>" +
+                    "<th>" + escapeHtml(COMPANY_NAMES[2]) + " Hrs</th>" +
+                    "<th>" + escapeHtml(COMPANY_NAMES[3]) + " Hrs</th>" +
+                    "<th style=\"width:90px;\">Day Total</th>" +
+                    "<th>Notes</th>" +
+                  "</tr>" +
+                "</thead>" +
+                "<tbody>" + rows + "</tbody>" +
+              "</table>" +
+            "</div>" +
+          "</td>" +
+        "</tr>"
+      );
+    }
+
+    function renderTable() {
+      const html = employees.map((employee) => {
+        return renderSummaryRow(employee) + renderDetailRows(employee);
+      }).join("");
+      tbody.innerHTML = html;
+      updateAllSummaries();
+    }
+
+    function updateEmployeeSummaryCells(employeeId) {
+      const employee = findEmployee(employeeId);
+      if (!employee) {
+        return;
+      }
+      const totals = employeeTotals(employee);
+
+      for (let idx = 0; idx < 4; idx += 1) {
+        const cell = tbody.querySelector(
+          'input[data-cell="company-total-' + idx + '"][data-id="' + employeeId + '"]'
+        );
+        if (cell) {
+          cell.value = totals.companyTotals[idx].toFixed(2);
+        }
+      }
+
+      const totalHoursCell = tbody.querySelector(
+        'input[data-cell="total-hours"][data-id="' + employeeId + '"]'
+      );
+      if (totalHoursCell) {
+        totalHoursCell.value = totals.totalHours.toFixed(2);
+      }
+
+      for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+        const dayTotal = employee.days[dayIndex].hours.reduce((acc, value) => acc + safeNumber(value), 0);
+        const dayTotalCell = tbody.querySelector(
+          'input[data-cell="day-total"][data-id="' + employeeId + '"][data-day="' + dayIndex + '"]'
+        );
+        if (dayTotalCell) {
+          dayTotalCell.value = dayTotal.toFixed(2);
+        }
+      }
+    }
+
+    function updateAllSummaries() {
+      let employeeCount = 0;
+      let totalHours = 0;
+      let totalCommissions = 0;
+      let totalBase = 0;
+
+      employees.forEach((employee) => {
+        const hasName = employee.name.trim().length > 0;
+        if (hasName) {
+          employeeCount += 1;
+        }
+        const totals = employeeTotals(employee);
+        totalHours += totals.totalHours;
+        totalCommissions += safeNumber(employee.commissions);
+        totalBase += totals.totalHours * safeNumber(employee.rate);
+      });
+
+      document.getElementById("sumEmployees").textContent = String(employeeCount);
+      document.getElementById("sumHours").textContent = totalHours.toFixed(2);
+      document.getElementById("sumCommissions").textContent = "$" + totalCommissions.toFixed(2);
+      document.getElementById("sumBase").textContent = "$" + totalBase.toFixed(2);
+    }
+
+    function setWeekStart(date, showHint) {
+      const snapped = snapToSaturday(date);
+      const changed = snapped.getTime() !== new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+      weekStart = snapped;
+      weekStartInput.value = formatIsoDate(weekStart);
+
+      const weekEnd = addDays(weekStart, 6);
+      weekEndText.textContent = formatUsDate(weekEnd);
+      payPeriodText.textContent = formatUsDate(weekStart) + " - " + formatUsDate(weekEnd);
+
+      if (showHint && changed) {
+        weekHint.textContent = "Adjusted to Saturday start to keep pay period Saturday-Friday.";
+      } else {
+        weekHint.textContent = "";
+      }
+
+      const today = new Date();
+      document.title = "Batch_Report_Sea_and_Air(" + formatIsoDate(today) + ")";
+    }
+
+    function toggleEmployeeDetails(employeeId) {
+      const employee = findEmployee(employeeId);
+      if (!employee) {
+        return;
+      }
+      employee.expanded = !employee.expanded;
+
+      const detailRow = tbody.querySelector('tr.detail-row[data-id="' + employeeId + '"]');
+      if (detailRow) {
+        detailRow.classList.toggle("collapsed", !employee.expanded);
+      }
+
+      const toggleButton = tbody.querySelector('button[data-action="toggle"][data-id="' + employeeId + '"]');
+      if (toggleButton) {
+        toggleButton.textContent = employee.expanded ? "▾" : "▸";
+      }
+    }
+
+    function createEmptyEmployee() {
+      return newEmployee({
+        name: "",
+        payrollCompany: COMPANY_NAMES[0],
+        rate: 0,
+        commissions: 0,
+        days: DAY_NAMES.map(() => ({ hours: [0, 0, 0, 0], note: "" })),
+        expanded: true
+      });
+    }
+
+    function selectedEmployees() {
+      return employees.filter((employee) => employee.selected);
+    }
+
+    function duplicateSelected() {
+      const chosen = selectedEmployees();
+      if (chosen.length === 0) {
+        return;
+      }
+      const clones = chosen.map((employee) => newEmployee({
+        name: employee.name,
+        payrollCompany: employee.payrollCompany,
+        rate: employee.rate,
+        commissions: employee.commissions,
+        days: employee.days.map((day) => ({
+          hours: [...day.hours],
+          note: day.note
+        })),
+        expanded: employee.expanded
+      }));
+      employees = employees.concat(clones);
+      renderTable();
+    }
+
+    function removeSelected() {
+      const before = employees.length;
+      employees = employees.filter((employee) => !employee.selected);
+      if (employees.length === before) {
+        return;
+      }
+      renderTable();
+    }
+
+    function setAllExpanded(expanded) {
+      employees.forEach((employee) => {
+        employee.expanded = expanded;
+      });
+      renderTable();
+    }
+
+    function buildPrintPages() {
+      const printContainer = document.getElementById("printPages");
+      const weekEnd = addDays(weekStart, 6);
+      const payPeriod = formatUsDate(weekStart) + " - " + formatUsDate(weekEnd);
+      const periodNote = periodNoteInput.value.trim();
+
+      const pages = employees
+        .filter((employee) => employee.name.trim().length > 0)
+        .map((employee) => {
+          const totals = employeeTotals(employee);
+          const dayRows = DAY_NAMES.map((dayName, dayIndex) => {
+            const dayDate = addDays(weekStart, dayIndex);
+            const day = employee.days[dayIndex];
+            const dayTotal = day.hours.reduce((acc, value) => acc + safeNumber(value), 0);
+            return (
+              "<tr>" +
+                "<td>" + dayName + "</td>" +
+                "<td>" + formatUsDate(dayDate) + "</td>" +
+                "<td>" + safeNumber(day.hours[0]).toFixed(2) + "</td>" +
+                "<td>" + safeNumber(day.hours[1]).toFixed(2) + "</td>" +
+                "<td>" + safeNumber(day.hours[2]).toFixed(2) + "</td>" +
+                "<td>" + safeNumber(day.hours[3]).toFixed(2) + "</td>" +
+                "<td>" + dayTotal.toFixed(2) + "</td>" +
+                "<td>" + escapeHtml(day.note) + "</td>" +
+              "</tr>"
+            );
+          }).join("");
+
+          const basePay = totals.totalHours * safeNumber(employee.rate);
+          const grossProxy = basePay + safeNumber(employee.commissions);
+
+          return (
+            '<section class="print-page">' +
+              '<div class="print-header">' +
+                "<div>" +
+                  '<h2 class="print-title">Timecard Report - Weekly</h2>' +
+                  '<p class="print-sub">Clear manual timesheet format (Saturday-Friday)</p>' +
+                "</div>" +
+                "<div>" +
+                  '<div class="print-sub"><strong>Generated:</strong> ' + formatUsDate(new Date()) + "</div>" +
+                "</div>" +
+              "</div>" +
+              '<div class="print-meta">' +
+                "<div><strong>Employee:</strong> " + escapeHtml(employee.name) + "</div>" +
+                "<div><strong>Payroll Company:</strong> " + escapeHtml(employee.payrollCompany) + "</div>" +
+                "<div><strong>Pay Period:</strong> " + payPeriod + "</div>" +
+                "<div><strong>Hourly Rate:</strong> $" + safeNumber(employee.rate).toFixed(2) + "</div>" +
+                (periodNote ? "<div><strong>Note:</strong> " + escapeHtml(periodNote) + "</div>" : "") +
+              "</div>" +
+              '<table class="print-table">' +
+                "<thead>" +
+                  "<tr>" +
+                    "<th>Day</th>" +
+                    "<th>Date</th>" +
+                    "<th>" + escapeHtml(COMPANY_NAMES[0]) + " Hrs</th>" +
+                    "<th>" + escapeHtml(COMPANY_NAMES[1]) + " Hrs</th>" +
+                    "<th>" + escapeHtml(COMPANY_NAMES[2]) + " Hrs</th>" +
+                    "<th>" + escapeHtml(COMPANY_NAMES[3]) + " Hrs</th>" +
+                    "<th>Day Total</th>" +
+                    "<th>Notes</th>" +
+                  "</tr>" +
+                "</thead>" +
+                "<tbody>" + dayRows + "</tbody>" +
+                "<tfoot>" +
+                  "<tr>" +
+                    "<td colspan=\"2\">Weekly Totals</td>" +
+                    "<td>" + totals.companyTotals[0].toFixed(2) + "</td>" +
+                    "<td>" + totals.companyTotals[1].toFixed(2) + "</td>" +
+                    "<td>" + totals.companyTotals[2].toFixed(2) + "</td>" +
+                    "<td>" + totals.companyTotals[3].toFixed(2) + "</td>" +
+                    "<td>" + totals.totalHours.toFixed(2) + "</td>" +
+                    "<td></td>" +
+                  "</tr>" +
+                "</tfoot>" +
+              "</table>" +
+              '<div class="print-foot">' +
+                "<div><strong>Commissions:</strong> $" + safeNumber(employee.commissions).toFixed(2) + "</div>" +
+                "<div><strong>Base Pay (Hours x Rate):</strong> $" + basePay.toFixed(2) + "</div>" +
+                "<div><strong>Gross (Base + Commissions):</strong> $" + grossProxy.toFixed(2) + "</div>" +
+              "</div>" +
+            "</section>"
+          );
+        });
+
+      if (pages.length === 0) {
+        printContainer.innerHTML = '<section class="print-page"><h2>No employees with names to print.</h2></section>';
+        return false;
+      }
+
+      printContainer.innerHTML = pages.join("");
+      return true;
+    }
+
+    function printToPdf() {
+      const hasPages = buildPrintPages();
+      if (!hasPages) {
+        return;
+      }
+      window.print();
+    }
+
+    function loadDemoData() {
+      employees = [
+        newEmployee({
+          name: "Tyshawn Eugene Allen",
+          payrollCompany: "Flat Price",
+          rate: 20.0,
+          commissions: 145.50,
+          days: [
+            { hours: [0, 0, 8, 0], note: "" },
+            { hours: [0, 0, 0, 0], note: "" },
+            { hours: [0, 0, 6.5, 0], note: "" },
+            { hours: [0, 0, 8.5, 0], note: "" },
+            { hours: [0, 0, 13.5, 0], note: "" },
+            { hours: [0, 0, 7, 0], note: "" },
+            { hours: [0, 0, 0, 0], note: "" }
+          ],
+          expanded: true
+        }),
+        newEmployee({
+          name: "Dwayne Guerra",
+          payrollCompany: "Flat Price",
+          rate: 21.5,
+          commissions: 98.00,
+          days: [
+            { hours: [0, 0, 5, 0], note: "" },
+            { hours: [0, 0, 0, 0], note: "" },
+            { hours: [0, 0, 5, 0], note: "" },
+            { hours: [0, 0, 6, 0], note: "" },
+            { hours: [0, 0, 10.5, 0], note: "" },
+            { hours: [0, 0, 0, 0], note: "" },
+            { hours: [0, 0, 0, 0], note: "" }
+          ],
+          expanded: false
+        })
+      ];
+      renderTable();
+    }
+
+    tbody.addEventListener("click", (event) => {
+      const toggleButton = event.target.closest('button[data-action="toggle"]');
+      if (!toggleButton) {
+        return;
+      }
+      const employeeId = Number(toggleButton.dataset.id);
+      if (!employeeId) {
+        return;
+      }
+      toggleEmployeeDetails(employeeId);
+    });
+
+    tbody.addEventListener("change", (event) => {
+      const target = event.target;
+      const field = target.dataset.field;
+      const employeeId = Number(target.dataset.id);
+      if (!field || !employeeId) {
+        return;
+      }
+      const employee = findEmployee(employeeId);
+      if (!employee) {
+        return;
+      }
+
+      if (field === "selected") {
+        employee.selected = !!target.checked;
+        return;
+      }
+
+      if (field === "payrollCompany") {
+        const value = String(target.value || "");
+        if (COMPANY_NAMES.includes(value)) {
+          employee.payrollCompany = value;
+          const detailCompany = tbody.querySelector(
+            'tr.detail-row[data-id="' + employeeId + '"] .detail-payroll-company'
+          );
+          if (detailCompany) {
+            detailCompany.textContent = "Payroll Company: " + employee.payrollCompany;
+          }
+        }
+        return;
+      }
+    });
+
+    tbody.addEventListener("input", (event) => {
+      const target = event.target;
+      const field = target.dataset.field;
+      const employeeId = Number(target.dataset.id);
+      if (!field || !employeeId) {
+        return;
+      }
+      const employee = findEmployee(employeeId);
+      if (!employee) {
+        return;
+      }
+
+      if (field === "name") {
+        employee.name = String(target.value || "");
+        const detailHeader = tbody.querySelector('tr.detail-row[data-id="' + employeeId + '"] .detail-head strong');
+        if (detailHeader) {
+          detailHeader.textContent = employee.name || "Employee";
+        }
+        updateAllSummaries();
+        return;
+      }
+
+      if (field === "rate") {
+        employee.rate = safeNumber(target.value);
+        updateAllSummaries();
+        return;
+      }
+
+      if (field === "commissions") {
+        employee.commissions = safeNumber(target.value);
+        updateAllSummaries();
+        return;
+      }
+
+      if (field === "hour") {
+        const dayIndex = Number(target.dataset.day);
+        const companyIndex = Number(target.dataset.company);
+        if (dayIndex >= 0 && dayIndex < 7 && companyIndex >= 0 && companyIndex < 4) {
+          employee.days[dayIndex].hours[companyIndex] = safeNumber(target.value);
+          updateEmployeeSummaryCells(employeeId);
+          updateAllSummaries();
+        }
+        return;
+      }
+
+      if (field === "day-note") {
+        const dayIndex = Number(target.dataset.day);
+        if (dayIndex >= 0 && dayIndex < 7) {
+          employee.days[dayIndex].note = String(target.value || "");
+        }
+      }
+    });
+
+    weekStartInput.addEventListener("change", () => {
+      const picked = parseIsoDate(weekStartInput.value) || new Date();
+      setWeekStart(picked, true);
+      renderTable();
+    });
+
+    document.getElementById("addEmployeeBtn").addEventListener("click", () => {
+      employees.push(createEmptyEmployee());
+      renderTable();
+    });
+
+    document.getElementById("duplicateBtn").addEventListener("click", duplicateSelected);
+    document.getElementById("removeBtn").addEventListener("click", removeSelected);
+    document.getElementById("expandAllBtn").addEventListener("click", () => setAllExpanded(true));
+    document.getElementById("collapseAllBtn").addEventListener("click", () => setAllExpanded(false));
+    document.getElementById("loadDemoBtn").addEventListener("click", loadDemoData);
+    document.getElementById("printBtn").addEventListener("click", printToPdf);
+
+    setWeekStart(weekStart, false);
+    loadDemoData();
+  </script>
+</body>
+</html>

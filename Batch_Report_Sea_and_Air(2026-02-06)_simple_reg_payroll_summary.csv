@@ -1,0 +1,10 @@
+Home Company,Employee Count,Total Hours,Total Pay,Cost Attributed to Scanio,Cost Attributed to Sea and Air,Cost Attributed to Flat Price
+SCANIO MOVING,10,280,5158.25,4763.07,1323.665,0
+SCANIO STORAGE,1,32.5,552.5,463.76,221.34,0
+SEA AND AIR INT-L,8,244.25,4385,4286.94,676.73,210.63
+FLAT PRICE,6,147.5,2759,581.74,240.72,2433.16
+
+Reimbursement Balances,Amount
+Due from Scanio to Sea & Air,2741.935
+Due from Scanio to Flat Price,581.74
+Due from Sea & Air to Flat Price,30.09

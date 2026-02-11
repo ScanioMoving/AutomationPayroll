@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: payroll-weekly-web
+    env: docker
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /healthz
+    plan: starter
+    disk:
+      name: payroll-data
+      mountPath: /var/data
+      sizeGB: 5
+    envVars:
+      - key: PAYROLL_WEB_HOST
+        value: 0.0.0.0
+      - key: PAYROLL_DATA_DIR
+        value: /var/data
+      - key: PAYROLL_COOKIE_SECURE
+        value: "1"
+      - key: PAYROLL_COOKIE_SAMESITE
+        value: Lax
+      - key: PAYROLL_ALLOW_REGISTRATION
+        value: "1"
+      - key: PAYROLL_SESSION_TTL_SECONDS
+        value: "604800"

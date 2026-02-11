@@ -1,0 +1,219 @@
+{
+  "employees": [
+    {
+      "name": "Adriano Rodallega",
+      "home_company": "scanio_moving",
+      "rate": 18.0
+    },
+    {
+      "name": "Ang F Sherpa",
+      "home_company": "scanio_moving",
+      "rate": 16.0
+    },
+    {
+      "name": "Ang Sona Sherpa",
+      "home_company": "sea_and_air_intl",
+      "rate": 18.0
+    },
+    {
+      "name": "Boris Brin",
+      "home_company": "scanio_moving",
+      "rate": 21.0
+    },
+    {
+      "name": "Chhiring L Gurung",
+      "home_company": "flat_price",
+      "rate": 18.0
+    },
+    {
+      "name": "Christian F Baena",
+      "home_company": "scanio_moving",
+      "rate": 19.0
+    },
+    {
+      "name": "Christian M Font",
+      "home_company": "scanio_moving",
+      "rate": 19.0
+    },
+    {
+      "name": "Corio Jamal Vinson",
+      "home_company": "scanio_moving",
+      "rate": 18.0
+    },
+    {
+      "name": "Daniel Richiez",
+      "home_company": "scanio_moving",
+      "rate": 19.0
+    },
+    {
+      "name": "Daniil Eremenkov",
+      "home_company": "scanio_moving",
+      "rate": 19.0
+    },
+    {
+      "name": "Danylo Chernysh",
+      "home_company": "scanio_moving",
+      "rate": 19.0
+    },
+    {
+      "name": "David E Aubert",
+      "home_company": "scanio_storage",
+      "rate": 18.0
+    },
+    {
+      "name": "David Torres",
+      "home_company": "scanio_moving",
+      "rate": 18.0
+    },
+    {
+      "name": "Dorgee Namjom",
+      "home_company": "flat_price",
+      "rate": 18.0
+    },
+    {
+      "name": "Dwayne K Guerra",
+      "home_company": "flat_price",
+      "rate": 21.0
+    },
+    {
+      "name": "Efrain Gongora",
+      "home_company": "scanio_moving",
+      "rate": 19.0
+    },
+    {
+      "name": "Farukh Baymatov",
+      "home_company": "scanio_moving",
+      "rate": 21.0
+    },
+    {
+      "name": "Fnu Rigjin Dawa",
+      "home_company": "sea_and_air_intl",
+      "rate": 18.0
+    },
+    {
+      "name": "Hishey L Lama",
+      "home_company": "sea_and_air_intl",
+      "rate": 18.0
+    },
+    {
+      "name": "Jimmy K Crawford",
+      "home_company": "scanio_moving",
+      "rate": 18.0
+    },
+    {
+      "name": "John Johnson",
+      "home_company": "flat_price",
+      "rate": 19.0
+    },
+    {
+      "name": "John Velez",
+      "home_company": "scanio_moving",
+      "rate": 21.0
+    },
+    {
+      "name": "Juan Francisco Cevallos Garzon",
+      "home_company": "flat_price",
+      "rate": 20.0
+    },
+    {
+      "name": "Kye DeVonte White",
+      "home_company": "sea_and_air_intl",
+      "rate": 19.0
+    },
+    {
+      "name": "Lakpa S Sherpa",
+      "home_company": "sea_and_air_intl",
+      "rate": 19.0
+    },
+    {
+      "name": "Maksim Ivashchanka",
+      "home_company": "scanio_moving",
+      "rate": 19.0
+    },
+    {
+      "name": "Maksym Lelytsia",
+      "home_company": "scanio_moving",
+      "rate": 17.0
+    },
+    {
+      "name": "Mamadou Yamar Diop",
+      "home_company": "scanio_storage",
+      "rate": 18.0
+    },
+    {
+      "name": "Mario Gomez -2",
+      "home_company": "scanio_storage",
+      "rate": 15.0
+    },
+    {
+      "name": "Mario J Gomez",
+      "home_company": "sea_and_air_intl",
+      "rate": 21.0
+    },
+    {
+      "name": "Nurba T Gurung",
+      "home_company": "flat_price",
+      "rate": 18.0
+    },
+    {
+      "name": "Oleksii Danylenko",
+      "home_company": "sea_and_air_intl",
+      "rate": 18.0
+    },
+    {
+      "name": "Phuri Sherpa",
+      "home_company": "flat_price",
+      "rate": 19.0
+    },
+    {
+      "name": "Reginald Debson",
+      "home_company": "scanio_storage",
+      "rate": 21.0
+    },
+    {
+      "name": "Ron Cohen",
+      "home_company": "scanio_storage",
+      "rate": 16.0
+    },
+    {
+      "name": "Sandesh Purja",
+      "home_company": "scanio_moving",
+      "rate": 18.0
+    },
+    {
+      "name": "Sonam Sherpa",
+      "home_company": "scanio_moving",
+      "rate": 17.0
+    },
+    {
+      "name": "Sonam T Lama",
+      "home_company": "sea_and_air_intl",
+      "rate": 18.0
+    },
+    {
+      "name": "Surya Hamal",
+      "home_company": "scanio_moving",
+      "rate": 17.0
+    },
+    {
+      "name": "Terry R Maynard",
+      "home_company": "scanio_moving",
+      "rate": 18.0
+    },
+    {
+      "name": "Tyshawn Eugene Allen",
+      "home_company": "flat_price",
+      "rate": 20.0
+    },
+    {
+      "name": "Vincent Vails",
+      "home_company": "sea_and_air_intl",
+      "rate": 17.0
+    },
+    {
+      "name": "Vladyslav Kandybiei",
+      "home_company": "sea_and_air_intl",
+      "rate": 17.0
+    }
+  ]
+}
