@@ -726,7 +726,7 @@
 
     .print-title-line {
       margin: 0;
-      font-size: 18px;
+      font-size: 16px;
       line-height: 1.05;
       color: #313131;
       font-weight: 600;
@@ -739,7 +739,7 @@
 
     .print-employee-name {
       margin: 0 0 2px;
-      font-size: 24px;
+      font-size: 22px;
       line-height: 0.98;
       color: #2f2f2f;
       font-weight: 800;
@@ -747,7 +747,7 @@
 
     .print-period-line {
       margin: 0 0 6px;
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.06;
       color: #3b3b3b;
       font-weight: 600;
@@ -770,9 +770,9 @@
     .print-main-table th {
       background: #7f9fc9;
       color: #ffffff;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
-      text-align: center;
+      text-align: left;
       padding: 3px 4px;
       border: 0;
       text-transform: uppercase;
@@ -782,6 +782,7 @@
       padding: 3px 3px;
       border: 0;
       vertical-align: middle;
+      text-align: left;
     }
 
     .print-main-table tbody tr:nth-child(odd) td {
@@ -804,28 +805,28 @@
     }
 
     .print-main-table .dept-col {
-      width: 95px;
+      width: 104px;
       text-transform: none;
     }
 
     .print-main-table .time-col {
-      width: 62px;
-      text-align: center;
+      width: 60px;
+      text-align: left;
     }
 
     .print-main-table .num-col {
-      text-align: center;
+      text-align: left;
       width: 46px;
     }
 
     .print-main-table .comm-col {
       width: 60px;
-      text-align: center;
+      text-align: left;
     }
 
     .print-main-table .comm-col-head,
     .print-main-table .notes-col-head {
-      font-size: 10px;
+      font-size: 9px;
       letter-spacing: 0;
     }
 
@@ -837,14 +838,28 @@
       word-break: break-word;
     }
 
-    .print-main-table thead th:first-child,
-    .print-main-table thead th:nth-child(2) {
-      text-align: left;
+    .print-main-table thead th,
+    .print-main-table tbody td {
       padding-left: 5px;
     }
 
+    .print-main-table th:nth-child(3),
+    .print-main-table td:nth-child(3) {
+      padding-right: 8px;
+    }
+
+    .print-main-table th:nth-child(4),
+    .print-main-table td:nth-child(4) {
+      padding-left: 7px;
+    }
+
+    .print-main-table th:nth-child(2),
+    .print-main-table td:nth-child(2) {
+      padding-left: 2px;
+    }
+
     .print-main-table .total-col-cell {
-      text-align: center;
+      text-align: left;
       width: 56px;
       font-weight: 700;
     }
@@ -3112,7 +3127,7 @@
                     "<tr>" +
                       "<th></th>" +
                       "<th>Date</th>" +
-                      "<th>Department</th>" +
+                      "<th>DEPT</th>" +
                       "<th>IN</th>" +
                       "<th>OUT</th>" +
                       "<th>REG</th>" +
