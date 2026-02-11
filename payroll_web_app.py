@@ -2542,7 +2542,8 @@ def run_web_app(host: str = "0.0.0.0", port: int = 8080) -> None:
 
 
 if __name__ == "__main__":
-    resolved_port = os.environ.get("PAYROLL_WEB_PORT") or os.environ.get("PORT") or "8080"
+    # Cloud hosts (Render, Railway, etc.) inject PORT dynamically.
+    resolved_port = os.environ.get("PORT") or os.environ.get("PAYROLL_WEB_PORT") or "8080"
     run_web_app(
         host=os.environ.get("PAYROLL_WEB_HOST", "0.0.0.0"),
         port=int(resolved_port),
