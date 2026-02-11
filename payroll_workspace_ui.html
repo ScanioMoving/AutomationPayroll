@@ -2062,7 +2062,7 @@
       manageStateChip.classList.toggle("on", manageMode);
       manageStateChip.classList.toggle("off", !manageMode);
       document.querySelectorAll(".manage-only").forEach((node) => {
-        node.style.display = manageMode ? "" : "none";
+        node.style.display = manageMode ? "inline-block" : "none";
       });
       addEmployeeBtn.disabled = !manageMode;
       duplicateBtn.disabled = !manageMode;
