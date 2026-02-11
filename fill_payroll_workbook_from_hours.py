@@ -363,7 +363,11 @@ def clone_template_row(sheet_data: ET.Element, template_row: ET.Element, target_
         formula = cell.find("a:f", NS)
         if formula is not None and formula.text:
             formula.text = shift_formula_for_row_copy(formula.text, delta)
+        if formula is not None:
+            # Cloned rows should carry plain formulas, not shared-formula bindings.
             formula.attrib.pop("ref", None)
+            formula.attrib.pop("si", None)
+            formula.attrib.pop("t", None)
         value_node = cell.find("a:v", NS)
         if formula is not None and value_node is not None:
             cell.remove(value_node)
@@ -496,6 +500,52 @@ def set_formula_cell(
     formula_node.text = formula
 
 
+def set_formula_cell_preserve_shared(
+    sheet_data: ET.Element,
+    row_number: int,
+    column: str,
+    formula: str,
+) -> None:
+    row_elem = get_or_create_row(sheet_data, row_number)
+    target_ref = f"{column}{row_number}"
+    target_cell: ET.Element | None = None
+    for cell in row_elem.findall("a:c", NS):
+        if cell.attrib.get("r") == target_ref:
+            target_cell = cell
+            break
+
+    if target_cell is None:
+        set_formula_cell(sheet_data, row_number, column, formula)
+        return
+
+    existing_formula = target_cell.find("a:f", NS)
+    if existing_formula is None:
+        set_formula_cell(sheet_data, row_number, column, formula)
+        return
+
+    # Keep shared-formula metadata (si/ref/t) intact for master cells.
+    # If this is a shared follower (no ref and no text), leave it untouched.
+    is_shared = existing_formula.attrib.get("t") == "shared"
+    if is_shared and "ref" not in existing_formula.attrib and not (existing_formula.text or "").strip():
+        return
+
+    existing_formula.text = formula
+    value_node = target_cell.find("a:v", NS)
+    if value_node is not None:
+        target_cell.remove(value_node)
+    if target_cell.attrib.get("t") == "inlineStr":
+        del target_cell.attrib["t"]
+
+
+def has_formula_cell(sheet_data: ET.Element, row_number: int, column: str) -> bool:
+    row_elem = get_or_create_row(sheet_data, row_number)
+    target_ref = f"{column}{row_number}"
+    for cell in row_elem.findall("a:c", NS):
+        if cell.attrib.get("r") == target_ref:
+            return cell.find("a:f", NS) is not None
+    return False
+
+
 def set_formula_string_cell(
     sheet_data: ET.Element, row_number: int, column: str, formula: str
 ) -> None:
@@ -605,59 +655,77 @@ def refresh_company_summary_formulas(
             "amount_row": amount_row,
         }
 
-        set_formula_cell(sheet_data, total_row, "D", f"SUM(D{start_row}:D{end_row})")
-        set_formula_cell(sheet_data, total_row, "M", f"SUM(M{start_row}:M{end_row})")
-        set_formula_cell(sheet_data, total_row, "O", f"SUM(O{start_row}:O{end_row})")
-        set_formula_cell(sheet_data, total_row, "Q", f"SUM(Q{start_row}:Q{end_row})")
+        set_formula_cell_preserve_shared(
+            sheet_data, total_row, "D", f"SUM(D{start_row}:D{end_row})"
+        )
+        set_formula_cell_preserve_shared(
+            sheet_data, total_row, "M", f"SUM(M{start_row}:M{end_row})"
+        )
+        set_formula_cell_preserve_shared(
+            sheet_data, total_row, "O", f"SUM(O{start_row}:O{end_row})"
+        )
+        set_formula_cell_preserve_shared(
+            sheet_data, total_row, "Q", f"SUM(Q{start_row}:Q{end_row})"
+        )
 
         burden = COMPANY_BURDEN_MULTIPLIER[company]
         burden_text = format_decimal_for_excel(burden)
-        set_formula_cell(sheet_data, amount_row, "E", f"E{total_row}+G{total_row}")
-        set_formula_cell(
+        set_formula_cell_preserve_shared(sheet_data, amount_row, "E", f"E{total_row}+G{total_row}")
+        set_formula_cell_preserve_shared(
             sheet_data, amount_row, "G", f"SUM(H{amount_row}:J{amount_row})/{burden_text}"
         )
-        set_formula_cell(sheet_data, amount_row, "H", f"H{total_row}*{burden_text}")
+        set_formula_cell_preserve_shared(
+            sheet_data, amount_row, "H", f"H{total_row}*{burden_text}"
+        )
 
         if company == "scanio_moving":
-            set_formula_cell(sheet_data, total_row, "L", f"K{total_row}/Q{total_row}")
-            set_formula_cell(sheet_data, total_row, "N", f"M{total_row}/Q{total_row}")
-            set_formula_cell(sheet_data, total_row, "P", f"O{total_row}/D{total_row}")
-            set_formula_cell(
+            set_formula_cell_preserve_shared(
+                sheet_data, total_row, "L", f"K{total_row}/Q{total_row}"
+            )
+            set_formula_cell_preserve_shared(
+                sheet_data, total_row, "N", f"M{total_row}/Q{total_row}"
+            )
+            set_formula_cell_preserve_shared(
+                sheet_data, total_row, "P", f"O{total_row}/D{total_row}"
+            )
+            set_formula_cell_preserve_shared(
                 sheet_data, amount_row, "K", f"E{total_row}*L{total_row}*{burden_text}"
             )
-            set_formula_cell(
+            set_formula_cell_preserve_shared(
                 sheet_data, amount_row, "M", f"E{total_row}*N{total_row}*{burden_text}"
             )
-            set_formula_cell(
+            set_formula_cell_preserve_shared(
                 sheet_data, amount_row, "O", f"E{total_row}*P{total_row}*{burden_text}"
             )
         else:
-            set_formula_cell(
+            set_formula_cell_preserve_shared(
                 sheet_data,
                 amount_row,
                 "K",
                 f"SUMPRODUCT(E{start_row}:E{end_row},L{start_row}:L{end_row})*{burden_text}",
             )
-            set_formula_cell(
+            set_formula_cell_preserve_shared(
                 sheet_data,
                 amount_row,
                 "M",
                 f"SUMPRODUCT(E{start_row}:E{end_row},N{start_row}:N{end_row})*{burden_text}",
             )
-            set_formula_cell(
+            set_formula_cell_preserve_shared(
                 sheet_data,
                 amount_row,
                 "O",
                 f"SUMPRODUCT(E{start_row}:E{end_row},P{start_row}:P{end_row})*{burden_text}",
             )
 
-        set_formula_cell(
+        set_formula_cell_preserve_shared(
             sheet_data,
             amount_row,
             "Q",
             f"(K{amount_row}+M{amount_row}+O{amount_row})/{burden_text}",
         )
-        set_formula_cell(sheet_data, amount_row + 1, "E", f"G{amount_row}+Q{amount_row}")
+        set_formula_cell_preserve_shared(
+            sheet_data, amount_row + 1, "E", f"G{amount_row}+Q{amount_row}"
+        )
 
     scanio_totals = section_rows["scanio_moving"]
     storage_totals = section_rows["scanio_storage"]
@@ -668,7 +736,7 @@ def refresh_company_summary_formulas(
     due_row = flat_totals["total_row"] + 7
     reimbursement_row = flat_totals["total_row"] + 15
 
-    set_formula_cell(
+    set_formula_cell_preserve_shared(
         sheet_data,
         overtime_row,
         "F",
@@ -679,7 +747,7 @@ def refresh_company_summary_formulas(
             f"+F{flat_totals['total_row']}"
         ),
     )
-    set_formula_cell(
+    set_formula_cell_preserve_shared(
         sheet_data,
         due_row,
         "C",
@@ -689,7 +757,7 @@ def refresh_company_summary_formulas(
             f"-M{storage_totals['amount_row']}-I{storage_totals['amount_row']}"
         ),
     )
-    set_formula_cell(
+    set_formula_cell_preserve_shared(
         sheet_data,
         due_row,
         "Q",
@@ -700,7 +768,7 @@ def refresh_company_summary_formulas(
             f"+Q{scanio_totals['total_row']}"
         ),
     )
-    set_formula_cell(
+    set_formula_cell_preserve_shared(
         sheet_data,
         reimbursement_row,
         "F",
@@ -715,28 +783,23 @@ def refresh_company_summary_formulas(
 
 
 def set_employee_row_formulas(sheet_data: ET.Element, row_number: int) -> None:
-    set_formula_cell(sheet_data, row_number, "D", f"SUM(K{row_number}:O{row_number})")
-    set_formula_cell(
-        sheet_data,
-        row_number,
-        "E",
-        (
+    formula_by_column = {
+        "D": f"SUM(K{row_number}:O{row_number})",
+        "E": (
             f"IF(D{row_number}>40,"
             f"(D{row_number}-40)*(C{row_number}*1.5)+(C{row_number}*40),"
             f"D{row_number}*C{row_number})"
         ),
-    )
-    set_formula_cell(
-        sheet_data,
-        row_number,
-        "F",
-        f"IF(D{row_number}>40,(D{row_number}-40)*(C{row_number}*0.5),0)",
-    )
-    set_formula_cell(sheet_data, row_number, "G", f"SUM(H{row_number}:J{row_number})")
-    set_formula_cell(sheet_data, row_number, "L", f"IFERROR(K{row_number}/Q{row_number},0)")
-    set_formula_cell(sheet_data, row_number, "N", f"IFERROR(M{row_number}/Q{row_number},0)")
-    set_formula_cell(sheet_data, row_number, "P", f"IFERROR(O{row_number}/Q{row_number},0)")
-    set_formula_cell(sheet_data, row_number, "Q", f"K{row_number}+M{row_number}+O{row_number}")
+        "F": f"IF(D{row_number}>40,(D{row_number}-40)*(C{row_number}*0.5),0)",
+        "G": f"SUM(H{row_number}:J{row_number})",
+        "L": f"IFERROR(K{row_number}/Q{row_number},0)",
+        "N": f"IFERROR(M{row_number}/Q{row_number},0)",
+        "P": f"IFERROR(O{row_number}/Q{row_number},0)",
+        "Q": f"K{row_number}+M{row_number}+O{row_number}",
+    }
+    for column, formula in formula_by_column.items():
+        if not has_formula_cell(sheet_data, row_number, column):
+            set_formula_cell(sheet_data, row_number, column, formula)
 
 
 def build_employee_rows_from_roster(
@@ -760,7 +823,7 @@ def build_employee_rows_from_roster(
         if overflow > 0:
             has_overflow = True
             insert_at = slots[-1] + 1
-            template_row = get_or_create_row(sheet_data, slots[-1])
+            template_row = get_or_create_row(sheet_data, slots[0])
             shift_rows_in_sheet(sheet_root, insert_at, overflow)
             for index in range(overflow):
                 clone_template_row(sheet_data, template_row, insert_at + index)
@@ -780,6 +843,7 @@ def build_employee_rows_from_roster(
 
         for idx, row_number in enumerate(slots):
             row_elem = get_or_create_row(sheet_data, row_number)
+            set_inline_string_cell(row_elem, row_number, "A", "")
             if idx < len(company_entries):
                 entry = company_entries[idx]
                 set_employee_row_formulas(sheet_data, row_number)
