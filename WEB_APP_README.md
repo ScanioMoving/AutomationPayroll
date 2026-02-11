@@ -68,6 +68,21 @@ Or push the latest saved week:
 scripts/sync_week_to_github.sh --latest
 ```
 
+## Populate hosted database from local saved weeks
+
+Push local `payroll_weeks` entries into your Render site database:
+
+```bash
+cd /Users/orlandocantoni/Downloads/AutomationPayroll
+export PAYROLL_REMOTE_PASSWORD='your-render-login-password'
+python scripts/sync_local_weeks_to_remote.py \
+  --base-url https://your-render-service.onrender.com \
+  --email your-login@email.com \
+  --since-week-start 2026-01-31
+```
+
+This writes each week via `/api/workspace/save` and can be rerun any time to add future weeks.
+
 ## Note
 
 This is an MVP server using Python stdlib HTTP server + SQLite.
