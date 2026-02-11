@@ -1958,7 +1958,9 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
                 if user is None:
                     return
                 ensure_user_employees_seeded(user.user_id)
-                rows = get_employees(user.user_id)
+                query = parse_qs(parsed.query)
+                include_hidden = parse_bool_flag((query.get("include_hidden") or ["0"])[0], False)
+                rows = get_employees(user.user_id, include_hidden=include_hidden)
                 json_response(
                     self,
                     {
@@ -1969,6 +1971,7 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
                                 "home_company": item["home_company"],
                                 "home_company_label": dict(COMPANY_OPTIONS)[item["home_company"]],
                                 "rate": item["rate"],
+                                "is_hidden": bool(item.get("is_hidden", False)),
                             }
                             for item in rows
                         ],
@@ -2017,7 +2020,12 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
                 if user is None:
                     return
                 ensure_user_employees_seeded(user.user_id)
-                json_response(self, {"ok": True, "employees": get_employees(user.user_id)})
+                query = parse_qs(parsed.query)
+                include_hidden = parse_bool_flag((query.get("include_hidden") or ["0"])[0], False)
+                json_response(
+                    self,
+                    {"ok": True, "employees": get_employees(user.user_id, include_hidden=include_hidden)},
+                )
                 return
             if path == "/api/jobs":
                 user = self.require_auth()

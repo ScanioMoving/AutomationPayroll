@@ -356,6 +356,31 @@
       margin-top: 8px;
     }
 
+    .manage-state {
+      border: 1px solid #b5c6d8;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .manage-state.off {
+      background: #eef3f8;
+      color: #2f475f;
+      border-color: #bdccda;
+    }
+
+    .manage-state.on {
+      background: #e7f7f3;
+      color: #0f5f56;
+      border-color: #8fc8be;
+    }
+
+    .manage-only {
+      display: none;
+    }
+
     .toolbar select {
       width: 220px;
       min-width: 170px;
@@ -427,6 +452,27 @@
 
     .sheet-table th.sortable-col.active {
       background: #b7cde2;
+    }
+
+    .name-cell-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hidden-badge {
+      border: 1px solid #9eb1c5;
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #3f5670;
+      background: #edf3f9;
+      white-space: nowrap;
+    }
+
+    .summary-row.hidden-employee-row td {
+      background: #f1f4f8 !important;
     }
 
     .sort-indicator {
@@ -981,10 +1027,12 @@
       </div>
       <div class="toolbar">
         <button id="manageToggleBtn" class="secondary" type="button">Manage Employees: Off</button>
-        <button id="addEmployeeBtn" type="button">Add Employee</button>
-        <button id="duplicateBtn" class="secondary" type="button">Duplicate Selected</button>
-        <button id="hideBtn" class="secondary" type="button">Hide Selected</button>
-        <button id="removeBtn" class="danger" type="button">Remove Selected</button>
+        <span id="manageStateChip" class="manage-state off">MANAGE OFF</span>
+        <button id="addEmployeeBtn" class="manage-only" type="button">Add Employee</button>
+        <button id="duplicateBtn" class="secondary manage-only" type="button">Duplicate Selected</button>
+        <button id="hideBtn" class="secondary manage-only" type="button">Hide Selected</button>
+        <button id="showHiddenBtn" class="secondary manage-only" type="button">Show Hidden</button>
+        <button id="removeBtn" class="danger manage-only" type="button">Remove Selected</button>
         <button id="selectAllBtn" class="secondary" type="button">Select All</button>
         <button id="clearSelBtn" class="secondary" type="button">Clear Selection</button>
         <button id="expandAllBtn" class="secondary" type="button">Expand All</button>
@@ -1071,9 +1119,11 @@
     const logoutBtn = document.getElementById("logoutBtn");
     const exportXlsxBtn = document.getElementById("exportXlsxBtn");
     const manageToggleBtn = document.getElementById("manageToggleBtn");
+    const manageStateChip = document.getElementById("manageStateChip");
     const addEmployeeBtn = document.getElementById("addEmployeeBtn");
     const duplicateBtn = document.getElementById("duplicateBtn");
     const hideBtn = document.getElementById("hideBtn");
+    const showHiddenBtn = document.getElementById("showHiddenBtn");
     const removeBtn = document.getElementById("removeBtn");
     const sortNameIndicator = document.getElementById("sortNameIndicator");
     const sortCompanyIndicator = document.getElementById("sortCompanyIndicator");
@@ -1375,6 +1425,7 @@
         id: nextEmployeeId++,
         selected: false,
         expanded: false,
+        isHidden: false,
         name: "",
         payrollCompany: PAYROLL_COMPANIES[0],
         rate: 0,
@@ -1397,6 +1448,7 @@
           : [0, 0, 0];
         employee.expanded = !!seed.expanded;
         employee.selected = !!seed.selected;
+        employee.isHidden = !!seed.isHidden;
         if (Array.isArray(seed.days)) {
           employee.days = DAY_NAMES.map((_, idx) => newDayEntry(seed.days[idx]));
         }
@@ -1677,14 +1729,16 @@
       const totals = employeeTotals(employee);
       const toggleIcon = employee.expanded ? "▾" : "▸";
       const metaEditable = manageMode;
+      const rowClass = employee.isHidden ? "summary-row hidden-employee-row" : "summary-row";
       const nameReadonly = metaEditable ? "" : " readonly";
       const nameLocked = metaEditable ? "" : " locked";
       const rateReadonly = metaEditable ? "" : " readonly";
       const rateLocked = metaEditable ? "" : " locked";
       const rateDisabled = metaEditable ? "" : " disabled";
+      const hiddenBadge = employee.isHidden ? '<span class="hidden-badge">Hidden</span>' : "";
 
       return (
-        '<tr class="summary-row" data-id="' + employee.id + '">' +
+        '<tr class="' + rowClass + '" data-id="' + employee.id + '">' +
           '<td class="sticky-left-1">' +
             '<input type="checkbox" data-field="selected" data-id="' + employee.id + '"' +
               (employee.selected ? " checked" : "") +
@@ -1695,7 +1749,7 @@
               toggleIcon +
             "</button>" +
           "</td>" +
-          '<td><input type="text" class="sheet-input' + nameLocked + '" data-field="name" data-id="' + employee.id + '" value="' + escapeHtml(employee.name) + '" placeholder="Employee name"' + nameReadonly + " /></td>" +
+          '<td><div class="name-cell-wrap"><input type="text" class="sheet-input' + nameLocked + '" data-field="name" data-id="' + employee.id + '" value="' + escapeHtml(employee.name) + '" placeholder="Employee name"' + nameReadonly + " />" + hiddenBadge + "</div></td>" +
           "<td>" + renderPayrollCompanySelect(employee.id, employee.payrollCompany) + "</td>" +
           '<td><input type="number" class="sheet-input num' + rateLocked + '" data-field="rate" data-id="' + employee.id + '" min="0" step="0.01" value="' + employee.rate.toFixed(2) + '"' + rateReadonly + rateDisabled + " /></td>" +
           '<td><input type="number" class="sheet-input num readonly" readonly data-cell="company-total-0" data-id="' + employee.id + '" value="' + totals.companyTotals[0].toFixed(2) + '" /></td>' +
@@ -2004,9 +2058,16 @@
       manageToggleBtn.textContent = manageMode
         ? "Manage Employees: On"
         : "Manage Employees: Off";
+      manageStateChip.textContent = manageMode ? "MANAGE ON" : "MANAGE OFF";
+      manageStateChip.classList.toggle("on", manageMode);
+      manageStateChip.classList.toggle("off", !manageMode);
+      document.querySelectorAll(".manage-only").forEach((node) => {
+        node.style.display = manageMode ? "" : "none";
+      });
       addEmployeeBtn.disabled = !manageMode;
       duplicateBtn.disabled = !manageMode;
       hideBtn.disabled = !manageMode;
+      showHiddenBtn.disabled = !manageMode;
       removeBtn.disabled = !manageMode;
     }
 
@@ -2233,6 +2294,7 @@
           name: employee.name,
           payrollCompany: employee.payrollCompany,
           rate: employee.rate,
+          isHidden: !!employee.isHidden,
           commissionsByCompany: [...employee.commissionsByCompany],
           days: employee.days.map((day) => ({
             companyTimes: day.companyTimes.map((slot) => ({
@@ -2329,6 +2391,94 @@
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         setActionHint("Hide failed: " + message, true);
+      }
+    }
+
+    async function showHiddenEmployeesInView() {
+      if (!manageMode) {
+        setActionHint("Turn on Manage mode to show hidden employees.", true);
+        return;
+      }
+
+      setActionHint("Loading hidden employees...", false);
+      try {
+        let response = await fetch("/api/workspace/employees?include_hidden=1");
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok) {
+          response = await fetch("/api/employees?include_hidden=1");
+        }
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok) {
+          setActionHint("Could not load hidden employees.", true);
+          return;
+        }
+
+        const payload = await response.json();
+        const rows = Array.isArray(payload.employees) ? payload.employees : [];
+        const hiddenRows = rows.filter((item) => !!item.is_hidden);
+        if (hiddenRows.length === 0) {
+          setActionHint("No hidden employees found.", false);
+          return;
+        }
+
+        const existingByName = new Map();
+        employees.forEach((employee) => {
+          existingByName.set(String(employee.name || "").trim().toLowerCase(), employee);
+        });
+
+        let added = 0;
+        let marked = 0;
+        hiddenRows.forEach((row) => {
+          const rowName = String(row.name || "").trim();
+          if (!rowName) {
+            return;
+          }
+          const key = rowName.toLowerCase();
+          const existing = existingByName.get(key);
+          if (existing) {
+            if (!existing.isHidden) {
+              existing.isHidden = true;
+              marked += 1;
+            }
+            return;
+          }
+          employees.push(
+            newEmployee({
+              name: rowName,
+              payrollCompany: mapRosterCompany(row),
+              rate: safeNumber(row.rate),
+              isHidden: true,
+              commissionsByCompany: [0, 0, 0],
+              days: DAY_NAMES.map(() => ({
+                companyTimes: [
+                  { inTime: "", outTime: "" },
+                  { inTime: "", outTime: "" },
+                  { inTime: "", outTime: "" }
+                ],
+                hours: [0, 0, 0],
+                commissions: [0, 0, 0],
+                note: ""
+              })),
+              expanded: false
+            })
+          );
+          added += 1;
+        });
+
+        renderTable();
+        setActionHint(
+          "Showing hidden employees: " + hiddenRows.length + " total (" + added + " added, " + marked + " marked).",
+          false
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setActionHint("Could not load hidden employees: " + message, true);
       }
     }
 
@@ -3285,14 +3435,16 @@
     async function loadEmployeesFromRoster(options) {
       const opts = options && typeof options === "object" ? options : {};
       const silent = !!opts.silent;
+      const includeHidden = !!opts.includeHidden;
       try {
-        let response = await fetch("/api/workspace/employees");
+        const includeHiddenQuery = includeHidden ? "?include_hidden=1" : "";
+        let response = await fetch("/api/workspace/employees" + includeHiddenQuery);
         if (response.status === 401) {
           window.location.href = "/login";
           return false;
         }
         if (!response.ok) {
-          response = await fetch("/api/employees");
+          response = await fetch("/api/employees" + includeHiddenQuery);
         }
         if (response.status === 401) {
           window.location.href = "/login";
@@ -3312,6 +3464,7 @@
             name: String(item.name || ""),
             payrollCompany: mapRosterCompany(item),
             rate: safeNumber(item.rate),
+            isHidden: !!item.is_hidden,
             commissionsByCompany: [0, 0, 0],
             days: DAY_NAMES.map(() => ({
               companyTimes: [
@@ -3328,7 +3481,11 @@
         );
         renderTable();
         if (!silent) {
-          setActionHint("Loaded " + rows.length + " employees from roster/template.", false);
+          if (includeHidden) {
+            setActionHint("Loaded " + rows.length + " employees (including hidden).", false);
+          } else {
+            setActionHint("Loaded " + rows.length + " employees from roster/template.", false);
+          }
         }
         return true;
       } catch {
@@ -3609,6 +3766,7 @@
     });
     duplicateBtn.addEventListener("click", duplicateSelected);
     hideBtn.addEventListener("click", hideSelectedFromRoster);
+    showHiddenBtn.addEventListener("click", showHiddenEmployeesInView);
     removeBtn.addEventListener("click", removeSelected);
     sortableHeaders.forEach((header) => {
       header.addEventListener("click", () => {
