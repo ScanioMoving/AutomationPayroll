@@ -224,6 +224,7 @@ def init_storage() -> None:
                 home_company TEXT NOT NULL,
                 rate REAL NOT NULL,
                 burden_multiplier REAL NOT NULL,
+                is_hidden INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL,
                 UNIQUE(user_id, name COLLATE NOCASE),
                 FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -261,6 +262,9 @@ def init_storage() -> None:
             );
             """
         )
+        employee_cols = {str(row["name"]) for row in con.execute("PRAGMA table_info(employees)").fetchall()}
+        if "is_hidden" not in employee_cols:
+            con.execute("ALTER TABLE employees ADD COLUMN is_hidden INTEGER NOT NULL DEFAULT 0")
 
 
 def create_session(user_id: int) -> str:
@@ -564,13 +568,17 @@ def set_default_template_path(user_id: int, template_path: Path) -> None:
         )
 
 
-def get_employees(user_id: int) -> list[dict[str, Any]]:
+def get_employees(user_id: int, include_hidden: bool = False) -> list[dict[str, Any]]:
+    hidden_filter = "" if include_hidden else "AND is_hidden = 0"
     with db_conn() as con:
         rows = con.execute(
             """
-            SELECT name, home_company, rate, burden_multiplier
+            SELECT name, home_company, rate, burden_multiplier, is_hidden
             FROM employees
             WHERE user_id = ?
+            """
+            + hidden_filter
+            + """
             ORDER BY lower(name)
             """,
             (user_id,),
@@ -581,6 +589,7 @@ def get_employees(user_id: int) -> list[dict[str, Any]]:
             "home_company": str(row["home_company"]),
             "rate": float(row["rate"]),
             "burden_multiplier": float(row["burden_multiplier"]),
+            "is_hidden": bool(int(row["is_hidden"])),
         }
         for row in rows
     ]
@@ -593,15 +602,16 @@ def upsert_employee(user_id: int, name: str, home_company: str, rate: float) -> 
     with db_conn() as con:
         con.execute(
             """
-            INSERT INTO employees(user_id, name, home_company, rate, burden_multiplier, updated_at)
-            VALUES(?,?,?,?,?,?)
+            INSERT INTO employees(user_id, name, home_company, rate, burden_multiplier, is_hidden, updated_at)
+            VALUES(?,?,?,?,?,?,?)
             ON CONFLICT(user_id, name) DO UPDATE SET
                 home_company = excluded.home_company,
                 rate = excluded.rate,
                 burden_multiplier = excluded.burden_multiplier,
+                is_hidden = 0,
                 updated_at = excluded.updated_at
             """,
-            (user_id, name, home_company, rate, burden, now_ts()),
+            (user_id, name, home_company, rate, burden, 0, now_ts()),
         )
 
 
@@ -618,6 +628,24 @@ def remove_employees(user_id: int, names: list[str]) -> int:
         )
         after = con.execute("SELECT COUNT(*) FROM employees WHERE user_id = ?", (user_id,)).fetchone()[0]
     return int(before - after)
+
+
+def set_employees_hidden(user_id: int, names: list[str], hidden: bool) -> int:
+    cleaned = [normalize_spaces(name) for name in names if normalize_spaces(name)]
+    if not cleaned:
+        return 0
+    placeholders = ",".join(["?"] * len(cleaned))
+    with db_conn() as con:
+        con.execute(
+            f"""
+            UPDATE employees
+            SET is_hidden = ?, updated_at = ?
+            WHERE user_id = ? AND lower(name) IN ({placeholders})
+            """,
+            [1 if hidden else 0, now_ts(), user_id, *[name.lower() for name in cleaned]],
+        )
+        changed = int(con.execute("SELECT changes()").fetchone()[0])
+    return changed
 
 
 def sync_employees_from_template(user_id: int, template_path: Path) -> dict[str, int]:
@@ -2078,6 +2106,9 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
             if path == "/api/employees/remove":
                 self.handle_remove_employees()
                 return
+            if path == "/api/employees/hide":
+                self.handle_hide_employees()
+                return
             text_response(self, "Not Found", status=404)
         except Exception as exc:
             json_response(
@@ -2538,6 +2569,20 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
 
         removed_count = remove_employees(user.user_id, names)
         json_response(self, {"ok": True, "removed_count": removed_count})
+
+    def handle_hide_employees(self) -> None:
+        user = self.require_auth()
+        if user is None:
+            return
+
+        data = parse_json_body(self)
+        names = data.get("names", [])
+        if not isinstance(names, list):
+            json_response(self, {"ok": False, "error": "Invalid names payload"}, status=400)
+            return
+        hidden = bool(data.get("hidden", True))
+        changed_count = set_employees_hidden(user.user_id, names, hidden=hidden)
+        json_response(self, {"ok": True, "hidden": hidden, "changed_count": changed_count})
 
     def log_message(self, format: str, *args: Any) -> None:
         return

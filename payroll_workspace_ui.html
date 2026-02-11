@@ -983,6 +983,7 @@
         <button id="manageToggleBtn" class="secondary" type="button">Manage Employees: Off</button>
         <button id="addEmployeeBtn" type="button">Add Employee</button>
         <button id="duplicateBtn" class="secondary" type="button">Duplicate Selected</button>
+        <button id="hideBtn" class="secondary" type="button">Hide Selected</button>
         <button id="removeBtn" class="danger" type="button">Remove Selected</button>
         <button id="selectAllBtn" class="secondary" type="button">Select All</button>
         <button id="clearSelBtn" class="secondary" type="button">Clear Selection</button>
@@ -1072,6 +1073,7 @@
     const manageToggleBtn = document.getElementById("manageToggleBtn");
     const addEmployeeBtn = document.getElementById("addEmployeeBtn");
     const duplicateBtn = document.getElementById("duplicateBtn");
+    const hideBtn = document.getElementById("hideBtn");
     const removeBtn = document.getElementById("removeBtn");
     const sortNameIndicator = document.getElementById("sortNameIndicator");
     const sortCompanyIndicator = document.getElementById("sortCompanyIndicator");
@@ -1949,6 +1951,7 @@
         : "Manage Employees: Off";
       addEmployeeBtn.disabled = !manageMode;
       duplicateBtn.disabled = !manageMode;
+      hideBtn.disabled = !manageMode;
       removeBtn.disabled = !manageMode;
     }
 
@@ -2207,6 +2210,68 @@
       }
       renderTable();
       setActionHint("Removed " + removed + " employee row(s).", false);
+    }
+
+    async function hideSelectedFromRoster() {
+      if (!manageMode) {
+        setActionHint("Turn on Manage mode to hide employees.", true);
+        return;
+      }
+      const chosen = selectedEmployees();
+      if (chosen.length === 0) {
+        setActionHint("Select employees first to hide.", true);
+        return;
+      }
+      const names = chosen
+        .map((employee) => String(employee.name || "").trim())
+        .filter((name) => name.length > 0);
+      if (names.length === 0) {
+        setActionHint("Selected rows must have names to be hidden.", true);
+        return;
+      }
+
+      setActionHint("Hiding selected employees...", false);
+      try {
+        const response = await fetch("/api/employees/hide", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ names, hidden: true })
+        });
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok) {
+          let message = "Hide failed.";
+          try {
+            const payload = await response.json();
+            if (payload && payload.error) {
+              message = String(payload.error);
+            }
+          } catch {
+            const text = await response.text();
+            if (text) {
+              message = text;
+            }
+          }
+          setActionHint(message, true);
+          return;
+        }
+
+        const hiddenNameSet = new Set(names.map((name) => name.toLowerCase()));
+        employees = employees.filter((employee) => {
+          const lowerName = String(employee.name || "").trim().toLowerCase();
+          return !employee.selected || !hiddenNameSet.has(lowerName);
+        });
+        renderTable();
+        setActionHint(
+          "Hidden " + names.length + " employee(s). They will not show for new week selection.",
+          false
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setActionHint("Hide failed: " + message, true);
+      }
     }
 
     function setSelectionForAll(selected) {
@@ -3434,6 +3499,7 @@
       setActionHint("Added new employee row.", false);
     });
     duplicateBtn.addEventListener("click", duplicateSelected);
+    hideBtn.addEventListener("click", hideSelectedFromRoster);
     removeBtn.addEventListener("click", removeSelected);
     sortableHeaders.forEach((header) => {
       header.addEventListener("click", () => {
