@@ -521,6 +521,14 @@
       border-color: #a7cbc6;
     }
 
+    .mini-clear-btn {
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+      min-width: 58px;
+    }
+
     .sheet-input {
       width: 100%;
       border: 1px solid #a6bacd;
@@ -951,6 +959,7 @@
           <option value="">Saved Weeks</option>
         </select>
         <button id="loadWeekBtn" class="secondary" type="button">Load Saved</button>
+        <button id="deleteWeekBtn" class="danger" type="button">Delete Saved Week</button>
         <button id="exportXlsxBtn" type="button">Export Filled Excel</button>
         <button id="printBtn" class="warning" type="button">Print to PDF</button>
         <button id="logoutBtn" class="secondary" type="button">Logout</button>
@@ -1116,6 +1125,7 @@
     const saveWeekBtn = document.getElementById("saveWeekBtn");
     const historySelect = document.getElementById("historySelect");
     const loadWeekBtn = document.getElementById("loadWeekBtn");
+    const deleteWeekBtn = document.getElementById("deleteWeekBtn");
     const logoutBtn = document.getElementById("logoutBtn");
     const exportXlsxBtn = document.getElementById("exportXlsxBtn");
     const manageToggleBtn = document.getElementById("manageToggleBtn");
@@ -1154,6 +1164,8 @@
     let autoSaveInFlight = false;
     let suppressAutoSave = false;
     let autoSaveDirty = false;
+    let pendingDeleteWeekId = "";
+    let pendingDeleteTimer = null;
 
     function pad2(value) {
       return String(value).padStart(2, "0");
@@ -1527,6 +1539,34 @@
       return day.hours.reduce((acc, value) => acc + safeNumber(value), 0);
     }
 
+    function clearEmployeeDayRow(employeeId, dayIndex) {
+      const employee = findEmployee(employeeId);
+      if (!employee) {
+        return;
+      }
+      if (!(dayIndex >= 0 && dayIndex < 7)) {
+        return;
+      }
+      const day = employee.days[dayIndex];
+      for (let idx = 0; idx < 3; idx += 1) {
+        day.companyTimes[idx].inTime = "";
+        day.companyTimes[idx].outTime = "";
+        day.hours[idx] = 0;
+        day.commissions[idx] = 0;
+      }
+      day.note = "";
+      for (let idx = 0; idx < 3; idx += 1) {
+        detailReferenceLocks.delete(detailLockKey(employeeId, dayIndex, idx));
+      }
+      updateEmployeeSummaryCells(employeeId);
+      updateAllSummaries();
+      queueAutoSave();
+      setActionHint(
+        "Cleared " + DAY_NAMES[dayIndex] + " row for " + (employee.name || "employee") + ".",
+        false
+      );
+    }
+
     function dayDepartment(day, fallbackCompany) {
       let maxIdx = -1;
       let maxValue = 0;
@@ -1787,6 +1827,7 @@
             '<td class="detail-total-col"><input type="number" class="sheet-input num readonly detail-total" readonly data-cell="day-total" data-id="' + employee.id + '" data-day="' + dayIndex + '" value="' + total.toFixed(2) + '" /></td>' +
             commCells +
             '<td><textarea class="sheet-input day-note-input" data-field="day-note" data-id="' + employee.id + '" data-day="' + dayIndex + '" rows="1" placeholder="optional note">' + escapeHtml(day.note) + "</textarea></td>" +
+            '<td><button type="button" class="secondary mini-clear-btn" data-action="clear-day" data-id="' + employee.id + '" data-day="' + dayIndex + '">Clear</button></td>' +
           "</tr>"
         );
       }).join("");
@@ -1818,6 +1859,7 @@
                     "<th style=\"width:82px;\">SA Comm</th>" +
                     "<th style=\"width:82px;\">FP Comm</th>" +
                     "<th style=\"width:180px;\">Notes</th>" +
+                    "<th style=\"width:72px;\">Action</th>" +
                   "</tr>" +
                 "</thead>" +
                 "<tbody>" + dayRows + "</tbody>" +
@@ -3353,6 +3395,85 @@
       }, 1800);
     }
 
+    function resetDeleteWeekConfirmation() {
+      pendingDeleteWeekId = "";
+      if (pendingDeleteTimer) {
+        clearTimeout(pendingDeleteTimer);
+        pendingDeleteTimer = null;
+      }
+      deleteWeekBtn.textContent = "Delete Saved Week";
+      deleteWeekBtn.classList.add("danger");
+      deleteWeekBtn.classList.remove("secondary");
+    }
+
+    function armDeleteWeekConfirmation(periodIdText) {
+      pendingDeleteWeekId = periodIdText;
+      if (pendingDeleteTimer) {
+        clearTimeout(pendingDeleteTimer);
+      }
+      pendingDeleteTimer = setTimeout(() => {
+        resetDeleteWeekConfirmation();
+      }, 9000);
+      deleteWeekBtn.textContent = "Confirm Delete";
+      deleteWeekBtn.classList.remove("secondary");
+      deleteWeekBtn.classList.add("danger");
+    }
+
+    async function deleteSelectedSavedWeek() {
+      const idText = String(historySelect.value || "").trim();
+      if (!idText) {
+        setActionHint("Select a saved week first.", true);
+        return;
+      }
+
+      if (pendingDeleteWeekId !== idText) {
+        armDeleteWeekConfirmation(idText);
+        setActionHint("Click Confirm Delete again to permanently delete this week.", true);
+        return;
+      }
+
+      resetDeleteWeekConfirmation();
+      setActionHint("Deleting saved week...", false);
+      try {
+        const response = await fetch("/api/workspace/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ period_id: Number(idText) })
+        });
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok) {
+          let message = "Delete failed.";
+          try {
+            const payload = await response.json();
+            if (payload && payload.error) {
+              message = String(payload.error);
+            }
+          } catch {
+            const text = await response.text();
+            if (text) {
+              message = text;
+            }
+          }
+          setActionHint(message, true);
+          return;
+        }
+        const payload = await response.json();
+        if (!payload.ok) {
+          setActionHint(String(payload.error || "Delete failed."), true);
+          return;
+        }
+        await loadSavedPeriods();
+        await loadOrClearForSelectedWeekStart();
+        setActionHint("Deleted saved week.", false);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setActionHint("Delete failed: " + message, true);
+      }
+    }
+
     async function logoutWorkspace() {
       try {
         await fetch("/api/auth/logout", { method: "POST" });
@@ -3494,6 +3615,16 @@
     }
 
     tbody.addEventListener("click", (event) => {
+      const clearDayButton = event.target.closest('button[data-action="clear-day"]');
+      if (clearDayButton) {
+        const employeeId = Number(clearDayButton.dataset.id);
+        const dayIndex = Number(clearDayButton.dataset.day);
+        if (employeeId) {
+          clearEmployeeDayRow(employeeId, dayIndex);
+        }
+        return;
+      }
+
       const toggleButton = event.target.closest('button[data-action="toggle"]');
       if (!toggleButton) {
         return;
@@ -3780,6 +3911,8 @@
     saveWeekBtn.addEventListener("click", saveCurrentWeek);
     loadWeekBtn.addEventListener("click", () => loadSavedWeekById(historySelect.value, false));
     historySelect.addEventListener("dblclick", () => loadSavedWeekById(historySelect.value, false));
+    historySelect.addEventListener("change", () => resetDeleteWeekConfirmation());
+    deleteWeekBtn.addEventListener("click", deleteSelectedSavedWeek);
     logoutBtn.addEventListener("click", logoutWorkspace);
     exportXlsxBtn.addEventListener("click", exportFilledWorkbook);
     document.getElementById("printBtn").addEventListener("click", printToPdf);
@@ -3790,6 +3923,20 @@
     bulkInInput.addEventListener("change", () => autofillBulkFields("in"));
     bulkOutInput.addEventListener("change", () => autofillBulkFields("out"));
     bulkHoursInput.addEventListener("change", () => autofillBulkFields("hours"));
+
+    document.addEventListener("click", (event) => {
+      const timeInput = event.target.closest('input[type="time"]');
+      if (!timeInput) {
+        return;
+      }
+      if (typeof timeInput.showPicker === "function") {
+        try {
+          timeInput.showPicker();
+        } catch {
+          // Ignore browsers that block programmatic picker opens.
+        }
+      }
+    });
 
     refreshBulkCompanyOptions();
     syncManageControls();

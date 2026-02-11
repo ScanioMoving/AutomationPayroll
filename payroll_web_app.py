@@ -1002,6 +1002,13 @@ def get_payroll_week(user_id: int, period_id: int) -> dict[str, Any] | None:
     }
 
 
+def delete_payroll_week(user_id: int, period_id: int) -> bool:
+    with db_conn() as con:
+        con.execute("DELETE FROM payroll_weeks WHERE user_id = ? AND id = ?", (user_id, period_id))
+        changed = int(con.execute("SELECT changes()").fetchone()[0])
+    return changed > 0
+
+
 def extract_source_names_from_batch(batch_csv: Path, exclude_weekly_overtime: bool, out_csv: Path) -> list[str]:
     include_weekly_overtime = not exclude_weekly_overtime
     totals = flatten_timecard(batch_csv, include_weekly_overtime=include_weekly_overtime)
@@ -2096,6 +2103,9 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
             if path == "/api/workspace/save":
                 self.handle_workspace_save()
                 return
+            if path == "/api/workspace/delete":
+                self.handle_workspace_delete()
+                return
             if path == "/api/template":
                 self.handle_set_template()
                 return
@@ -2348,6 +2358,30 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
                 "updated_at": now_ts(),
             },
         )
+
+    def handle_workspace_delete(self) -> None:
+        user = self.require_auth()
+        if user is None:
+            return
+
+        data = parse_json_body(self)
+        period_id_raw = data.get("period_id")
+        try:
+            period_id = int(period_id_raw)
+        except Exception:
+            json_response(self, {"ok": False, "error": "period_id must be an integer"}, status=400)
+            return
+
+        if period_id <= 0:
+            json_response(self, {"ok": False, "error": "period_id must be positive"}, status=400)
+            return
+
+        deleted = delete_payroll_week(user.user_id, period_id)
+        if not deleted:
+            json_response(self, {"ok": False, "error": "Saved week not found"}, status=404)
+            return
+
+        json_response(self, {"ok": True, "deleted": True, "period_id": period_id})
 
     def handle_set_template(self) -> None:
         user = self.require_auth()
