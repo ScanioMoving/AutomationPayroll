@@ -1,0 +1,26 @@
+name: smoke-check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  py-compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile check
+        run: |
+          python -m py_compile \
+            payroll_web_app.py \
+            fill_payroll_workbook_from_hours.py \
+            simplify_timecard_csv.py \
+            scripts/export_payroll_period.py

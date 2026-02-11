@@ -53,6 +53,21 @@ Use Render with `render.yaml` in this repository, or run Docker on any host with
 - `PAYROLL_COOKIE_SECURE=1`
 - `PAYROLL_ALLOW_REGISTRATION=0` after initial admin bootstrap
 
+## Save a payroll week to GitHub (one command)
+
+Use the helper script to export a saved week from local DB, run a smoke compile check, commit, and push:
+
+```bash
+cd /Users/orlandocantoni/Downloads/AutomationPayroll
+scripts/sync_week_to_github.sh 2026-01-31 2026-02-06
+```
+
+Or push the latest saved week:
+
+```bash
+scripts/sync_week_to_github.sh --latest
+```
+
 ## Note
 
 This is an MVP server using Python stdlib HTTP server + SQLite.
