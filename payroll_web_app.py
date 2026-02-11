@@ -2201,14 +2201,29 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
             return
 
         week_start_text = normalize_spaces(str(data.get("week_start", "")))
-        week_suffix = week_start_text if parse_iso_date(week_start_text) else "workspace"
+        week_end_text = normalize_spaces(str(data.get("week_end", "")))
+        week_start_date = parse_iso_date(week_start_text)
+        week_end_date = parse_iso_date(week_end_text)
+        if week_start_date is not None and week_end_date is None:
+            week_end_date = week_start_date + timedelta(days=6)
+
+        if week_start_date is not None and week_end_date is not None:
+            output_filename = (
+                "payroll_week_"
+                + week_start_date.isoformat()
+                + "_to_"
+                + week_end_date.isoformat()
+                + "_filled.xlsx"
+            )
+        else:
+            output_filename = safe_filename(f"{template_path.stem}_workspace_filled.xlsx", "payroll_workspace_filled.xlsx")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
             hours_csv = tmp / "workspace_hours.csv"
             tips_csv = tmp / "workspace_tips.csv"
             roster_json = tmp / "workspace_roster.json"
-            output_xlsx = tmp / f"{template_path.stem}_{week_suffix}_filled.xlsx"
+            output_xlsx = tmp / output_filename
 
             write_workspace_hours_csv(hours_csv, workspace_rows)
             write_workspace_tips_csv(tips_csv, workspace_rows)
