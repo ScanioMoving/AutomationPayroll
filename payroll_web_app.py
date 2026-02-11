@@ -590,6 +590,7 @@ def get_employees(user_id: int, include_hidden: bool = False) -> list[dict[str, 
             "rate": float(row["rate"]),
             "burden_multiplier": float(row["burden_multiplier"]),
             "is_hidden": bool(int(row["is_hidden"])),
+            "is_inactive": bool(int(row["is_hidden"])),
         }
         for row in rows
     ]
@@ -2228,11 +2229,25 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
             )
             return
 
-        workspace_rows = aggregate_workspace_employees(raw_rows)
+        def is_row_inactive(item: Any) -> bool:
+            if not isinstance(item, dict):
+                return False
+            for key in ("isHidden", "is_hidden", "isInactive", "is_inactive", "inactive"):
+                value = item.get(key)
+                if isinstance(value, bool):
+                    if value:
+                        return True
+                    continue
+                if parse_bool_flag(None if value is None else str(value), False):
+                    return True
+            return False
+
+        active_rows = [item for item in raw_rows if not is_row_inactive(item)]
+        workspace_rows = aggregate_workspace_employees(active_rows)
         if not workspace_rows:
             json_response(
                 self,
-                {"ok": False, "error": "No named employees found in workspace data."},
+                {"ok": False, "error": "No active named employees found in workspace data."},
                 status=400,
             )
             return
@@ -2624,7 +2639,15 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
             return
         hidden = bool(data.get("hidden", True))
         changed_count = set_employees_hidden(user.user_id, names, hidden=hidden)
-        json_response(self, {"ok": True, "hidden": hidden, "changed_count": changed_count})
+        json_response(
+            self,
+            {
+                "ok": True,
+                "hidden": hidden,
+                "inactive": hidden,
+                "changed_count": changed_count,
+            },
+        )
 
     def log_message(self, format: str, *args: Any) -> None:
         return

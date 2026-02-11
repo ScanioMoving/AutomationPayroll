@@ -11,6 +11,7 @@ import re
 import unicodedata
 import zipfile
 from collections import defaultdict
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
@@ -29,6 +30,7 @@ SHEET_DATA_XML_RE = re.compile(
 CALC_PR_XML_RE = re.compile(
     r"<(?:\w+:)?calcPr\b[^>]*(?:/>|>.*?</(?:\w+:)?calcPr>)", re.DOTALL
 )
+FORMULA_CELL_REF_RE = re.compile(r"(\$?)([A-Z]{1,3})(\$?)(\d+)")
 
 COMPANY_TO_COLUMN = {
     "scanio": "K",
@@ -49,16 +51,24 @@ HOME_COMPANY_TO_TIP_SOURCE = {
     "flat_price": "flat_price",
 }
 
-B101_SAFE_FORMULA = (
-    'IF(C93=0,"No Scanio/SeaAir Reimbursement",'
-    'IF(C93>0,"Scanio Owes Sea & Air","Sea & Air Owes Scanio"))'
-)
+def reimbursement_status_formula(due_row: int) -> str:
+    return (
+        f'IF(C{due_row}=0,"No Scanio/SeaAir Reimbursement",'
+        f'IF(C{due_row}>0,"Scanio Owes Sea & Air","Sea & Air Owes Scanio"))'
+    )
 
 COMPANY_ROW_SLOTS = {
     "scanio_moving": list(range(5, 26)),
     "scanio_storage": list(range(33, 40)),
     "sea_and_air_intl": list(range(47, 57)),
     "flat_price": list(range(64, 86)),
+}
+
+COMPANY_BURDEN_MULTIPLIER = {
+    "scanio_moving": 1.18,
+    "scanio_storage": 1.24,
+    "sea_and_air_intl": 1.18,
+    "flat_price": 1.18,
 }
 
 def normalize_spaces(value: str) -> str:
@@ -233,6 +243,134 @@ def insert_cell_in_order(row_elem: ET.Element, new_cell: ET.Element, target_colu
     row_elem.append(new_cell)
 
 
+def shift_formula_for_row_insert(formula: str, start_row: int, delta: int) -> str:
+    if not formula or delta == 0:
+        return formula
+
+    def repl(match: re.Match[str]) -> str:
+        col_abs, col, row_abs, row_text = match.groups()
+        row_number = int(row_text)
+        if row_number >= start_row:
+            row_number += delta
+        return f"{col_abs}{col}{row_abs}{row_number}"
+
+    return FORMULA_CELL_REF_RE.sub(repl, formula)
+
+
+def shift_formula_for_row_copy(formula: str, delta: int) -> str:
+    if not formula or delta == 0:
+        return formula
+
+    def repl(match: re.Match[str]) -> str:
+        col_abs, col, row_abs, row_text = match.groups()
+        row_number = int(row_text)
+        if not row_abs:
+            row_number += delta
+        return f"{col_abs}{col}{row_abs}{row_number}"
+
+    return FORMULA_CELL_REF_RE.sub(repl, formula)
+
+
+def shift_ref_rows(ref_text: str, start_row: int, delta: int) -> str:
+    if not ref_text or delta == 0:
+        return ref_text
+
+    parts = ref_text.split(":", 1)
+    adjusted: list[str] = []
+    for part in parts:
+        match = FORMULA_CELL_REF_RE.fullmatch(part)
+        if not match:
+            adjusted.append(part)
+            continue
+        col_abs, col, row_abs, row_text = match.groups()
+        row_number = int(row_text)
+        if row_number >= start_row:
+            row_number += delta
+        adjusted.append(f"{col_abs}{col}{row_abs}{row_number}")
+
+    return ":".join(adjusted)
+
+
+def shift_rows_in_sheet(sheet_root: ET.Element, start_row: int, delta: int) -> None:
+    if delta == 0:
+        return
+
+    sheet_data = sheet_root.find("a:sheetData", NS)
+    if sheet_data is None:
+        return
+
+    rows = sheet_data.findall("a:row", NS)
+    rows_sorted = sorted(
+        rows,
+        key=lambda node: int(node.attrib.get("r", "0")),
+        reverse=delta > 0,
+    )
+    for row_elem in rows_sorted:
+        row_number = int(row_elem.attrib.get("r", "0"))
+        if row_number >= start_row:
+            row_elem.attrib["r"] = str(row_number + delta)
+        for cell in row_elem.findall("a:c", NS):
+            ref = cell.attrib.get("r")
+            if ref:
+                col, cell_row = parse_cell_ref(ref)
+                if cell_row >= start_row:
+                    cell.attrib["r"] = f"{col}{cell_row + delta}"
+            formula = cell.find("a:f", NS)
+            if formula is not None and formula.text:
+                formula.text = shift_formula_for_row_insert(formula.text, start_row, delta)
+            formula_ref = formula.attrib.get("ref") if formula is not None else None
+            if formula is not None and formula_ref:
+                formula.attrib["ref"] = shift_ref_rows(formula_ref, start_row, delta)
+
+    merge_cells = sheet_root.find("a:mergeCells", NS)
+    if merge_cells is not None:
+        for merge_cell in merge_cells.findall("a:mergeCell", NS):
+            ref = merge_cell.attrib.get("ref")
+            if ref:
+                merge_cell.attrib["ref"] = shift_ref_rows(ref, start_row, delta)
+
+    dimension = sheet_root.find("a:dimension", NS)
+    if dimension is not None:
+        ref = dimension.attrib.get("ref")
+        if ref:
+            dimension.attrib["ref"] = shift_ref_rows(ref, start_row, delta)
+
+
+def insert_row_in_order(sheet_data: ET.Element, row_elem: ET.Element) -> None:
+    target_row = int(row_elem.attrib.get("r", "0"))
+    children = list(sheet_data)
+    for child_idx, child in enumerate(children):
+        if child.tag != f"{{{NS_MAIN}}}row":
+            continue
+        existing_row = int(child.attrib.get("r", "0"))
+        if existing_row > target_row:
+            sheet_data.insert(child_idx, row_elem)
+            return
+    sheet_data.append(row_elem)
+
+
+def clone_template_row(sheet_data: ET.Element, template_row: ET.Element, target_row: int) -> None:
+    source_row = int(template_row.attrib.get("r", "0"))
+    row_clone = deepcopy(template_row)
+    row_clone.attrib["r"] = str(target_row)
+
+    delta = target_row - source_row
+    for cell in row_clone.findall("a:c", NS):
+        ref = cell.attrib.get("r")
+        if ref:
+            col, _ = parse_cell_ref(ref)
+            cell.attrib["r"] = f"{col}{target_row}"
+        formula = cell.find("a:f", NS)
+        if formula is not None and formula.text:
+            formula.text = shift_formula_for_row_copy(formula.text, delta)
+            formula.attrib.pop("ref", None)
+        value_node = cell.find("a:v", NS)
+        if formula is not None and value_node is not None:
+            cell.remove(value_node)
+
+    insert_row_in_order(sheet_data, row_clone)
+
+
 def get_shared_strings(zf: zipfile.ZipFile) -> list[str]:
     root = ET.fromstring(zf.read("xl/sharedStrings.xml"))
     strings: list[str] = []
@@ -326,8 +464,12 @@ def get_or_create_row(sheet_data: ET.Element, row_number: int) -> ET.Element:
     return new_row
 
 
-def set_formula_string_cell(
-    sheet_data: ET.Element, row_number: int, column: str, formula: str
+def set_formula_cell(
+    sheet_data: ET.Element,
+    row_number: int,
+    column: str,
+    formula: str,
+    cell_type: str | None = None,
 ) -> None:
     row_elem = get_or_create_row(sheet_data, row_number)
     target_ref = f"{column}{row_number}"
@@ -341,13 +483,23 @@ def set_formula_string_cell(
         target_cell = ET.Element(f"{{{NS_MAIN}}}c", {"r": target_ref})
         insert_cell_in_order(row_elem, target_cell, column)
 
-    target_cell.attrib["t"] = "str"
+    if cell_type:
+        target_cell.attrib["t"] = cell_type
+    elif "t" in target_cell.attrib:
+        del target_cell.attrib["t"]
+
     for child in list(target_cell):
         if child.tag in {f"{{{NS_MAIN}}}v", f"{{{NS_MAIN}}}f", f"{{{NS_MAIN}}}is"}:
             target_cell.remove(child)
 
     formula_node = ET.SubElement(target_cell, f"{{{NS_MAIN}}}f")
     formula_node.text = formula
+
+
+def set_formula_string_cell(
+    sheet_data: ET.Element, row_number: int, column: str, formula: str
+) -> None:
+    set_formula_cell(sheet_data, row_number, column, formula, cell_type="str")
 
 
 def set_inline_string_cell(row_elem: ET.Element, row_number: int, column: str, value: str) -> None:
@@ -424,9 +576,174 @@ def load_roster(roster_path: Path) -> list[dict[str, Any]]:
     return result
 
 
+def map_row_with_insertions(
+    original_row: int, insertions: list[tuple[int, int]]
+) -> int:
+    mapped = original_row
+    for start_row, delta in insertions:
+        if mapped >= start_row:
+            mapped += delta
+    return mapped
+
+
+def refresh_company_summary_formulas(
+    sheet_data: ET.Element, company_slots: dict[str, list[int]]
+) -> int:
+    section_rows: dict[str, dict[str, int]] = {}
+
+    for company, slots in company_slots.items():
+        if not slots:
+            continue
+        start_row = min(slots)
+        end_row = max(slots)
+        total_row = end_row + 1
+        amount_row = end_row + 3
+        section_rows[company] = {
+            "start_row": start_row,
+            "end_row": end_row,
+            "total_row": total_row,
+            "amount_row": amount_row,
+        }
+
+        set_formula_cell(sheet_data, total_row, "D", f"SUM(D{start_row}:D{end_row})")
+        set_formula_cell(sheet_data, total_row, "M", f"SUM(M{start_row}:M{end_row})")
+        set_formula_cell(sheet_data, total_row, "O", f"SUM(O{start_row}:O{end_row})")
+        set_formula_cell(sheet_data, total_row, "Q", f"SUM(Q{start_row}:Q{end_row})")
+
+        burden = COMPANY_BURDEN_MULTIPLIER[company]
+        burden_text = format_decimal_for_excel(burden)
+        set_formula_cell(sheet_data, amount_row, "E", f"E{total_row}+G{total_row}")
+        set_formula_cell(
+            sheet_data, amount_row, "G", f"SUM(H{amount_row}:J{amount_row})/{burden_text}"
+        )
+        set_formula_cell(sheet_data, amount_row, "H", f"H{total_row}*{burden_text}")
+
+        if company == "scanio_moving":
+            set_formula_cell(sheet_data, total_row, "L", f"K{total_row}/Q{total_row}")
+            set_formula_cell(sheet_data, total_row, "N", f"M{total_row}/Q{total_row}")
+            set_formula_cell(sheet_data, total_row, "P", f"O{total_row}/D{total_row}")
+            set_formula_cell(
+                sheet_data, amount_row, "K", f"E{total_row}*L{total_row}*{burden_text}"
+            )
+            set_formula_cell(
+                sheet_data, amount_row, "M", f"E{total_row}*N{total_row}*{burden_text}"
+            )
+            set_formula_cell(
+                sheet_data, amount_row, "O", f"E{total_row}*P{total_row}*{burden_text}"
+            )
+        else:
+            set_formula_cell(
+                sheet_data,
+                amount_row,
+                "K",
+                f"SUMPRODUCT(E{start_row}:E{end_row},L{start_row}:L{end_row})*{burden_text}",
+            )
+            set_formula_cell(
+                sheet_data,
+                amount_row,
+                "M",
+                f"SUMPRODUCT(E{start_row}:E{end_row},N{start_row}:N{end_row})*{burden_text}",
+            )
+            set_formula_cell(
+                sheet_data,
+                amount_row,
+                "O",
+                f"SUMPRODUCT(E{start_row}:E{end_row},P{start_row}:P{end_row})*{burden_text}",
+            )
+
+        set_formula_cell(
+            sheet_data,
+            amount_row,
+            "Q",
+            f"(K{amount_row}+M{amount_row}+O{amount_row})/{burden_text}",
+        )
+        set_formula_cell(sheet_data, amount_row + 1, "E", f"G{amount_row}+Q{amount_row}")
+
+    scanio_totals = section_rows["scanio_moving"]
+    storage_totals = section_rows["scanio_storage"]
+    sea_totals = section_rows["sea_and_air_intl"]
+    flat_totals = section_rows["flat_price"]
+
+    overtime_row = flat_totals["total_row"] + 5
+    due_row = flat_totals["total_row"] + 7
+    reimbursement_row = flat_totals["total_row"] + 15
+
+    set_formula_cell(
+        sheet_data,
+        overtime_row,
+        "F",
+        (
+            f"F{scanio_totals['total_row']}"
+            f"+F{storage_totals['total_row']}"
+            f"+F{sea_totals['total_row']}"
+            f"+F{flat_totals['total_row']}"
+        ),
+    )
+    set_formula_cell(
+        sheet_data,
+        due_row,
+        "C",
+        (
+            f"K{sea_totals['amount_row']}+H{sea_totals['amount_row']}"
+            f"-M{scanio_totals['amount_row']}-I{scanio_totals['amount_row']}"
+            f"-M{storage_totals['amount_row']}-I{storage_totals['amount_row']}"
+        ),
+    )
+    set_formula_cell(
+        sheet_data,
+        due_row,
+        "Q",
+        (
+            f"Q{flat_totals['total_row']}"
+            f"+Q{sea_totals['total_row']}"
+            f"+Q{storage_totals['total_row']}"
+            f"+Q{scanio_totals['total_row']}"
+        ),
+    )
+    set_formula_cell(
+        sheet_data,
+        reimbursement_row,
+        "F",
+        (
+            f"G{flat_totals['amount_row']}"
+            f"+G{sea_totals['amount_row']}"
+            f"+G{storage_totals['amount_row']}"
+            f"+G{scanio_totals['amount_row']}"
+        ),
+    )
+    return reimbursement_row
+
+
+def set_employee_row_formulas(sheet_data: ET.Element, row_number: int) -> None:
+    set_formula_cell(sheet_data, row_number, "D", f"SUM(K{row_number}:O{row_number})")
+    set_formula_cell(
+        sheet_data,
+        row_number,
+        "E",
+        (
+            f"IF(D{row_number}>40,"
+            f"(D{row_number}-40)*(C{row_number}*1.5)+(C{row_number}*40),"
+            f"D{row_number}*C{row_number})"
+        ),
+    )
+    set_formula_cell(
+        sheet_data,
+        row_number,
+        "F",
+        f"IF(D{row_number}>40,(D{row_number}-40)*(C{row_number}*0.5),0)",
+    )
+    set_formula_cell(sheet_data, row_number, "G", f"SUM(H{row_number}:J{row_number})")
+    set_formula_cell(sheet_data, row_number, "L", f"IFERROR(K{row_number}/Q{row_number},0)")
+    set_formula_cell(sheet_data, row_number, "N", f"IFERROR(M{row_number}/Q{row_number},0)")
+    set_formula_cell(sheet_data, row_number, "P", f"IFERROR(O{row_number}/Q{row_number},0)")
+    set_formula_cell(sheet_data, row_number, "Q", f"K{row_number}+M{row_number}+O{row_number}")
+
+
 def build_employee_rows_from_roster(
-    sheet_data: ET.Element, roster_entries: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+    sheet_root: ET.Element,
+    sheet_data: ET.Element,
+    roster_entries: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for entry in roster_entries:
         grouped[entry["home_company"]].append(entry)
@@ -434,19 +751,33 @@ def build_employee_rows_from_roster(
     for company in grouped:
         grouped[company].sort(key=lambda item: normalize_name(item["name"]))
 
+    insertions: list[tuple[int, int]] = []
+    company_slots: dict[str, list[int]] = {}
+    for company, base_slots in COMPANY_ROW_SLOTS.items():
+        slots = [map_row_with_insertions(row_number, insertions) for row_number in base_slots]
+        overflow = len(grouped.get(company, [])) - len(slots)
+        if overflow > 0:
+            insert_at = slots[-1] + 1
+            template_row = get_or_create_row(sheet_data, slots[-1])
+            shift_rows_in_sheet(sheet_root, insert_at, overflow)
+            for index in range(overflow):
+                clone_template_row(sheet_data, template_row, insert_at + index)
+            insertions.append((insert_at, overflow))
+            slots.extend(insert_at + index for index in range(overflow))
+        company_slots[company] = slots
+
+    reimbursement_row = refresh_company_summary_formulas(sheet_data, company_slots)
+
     employee_rows: list[dict[str, Any]] = []
     fill_columns = ["H", "I", "J", "K", "M", "O"]
 
-    for company, slots in COMPANY_ROW_SLOTS.items():
+    for company, slots in company_slots.items():
         company_entries = grouped.get(company, [])
-        if len(company_entries) > len(slots):
-            raise ValueError(
-                f"Roster has {len(company_entries)} employees for {company}, "
-                f"but template supports only {len(slots)} rows."
-            )
 
         for idx, row_number in enumerate(slots):
             row_elem = get_or_create_row(sheet_data, row_number)
+            set_inline_string_cell(row_elem, row_number, "A", "")
+            set_employee_row_formulas(sheet_data, row_number)
             if idx < len(company_entries):
                 entry = company_entries[idx]
                 set_inline_string_cell(row_elem, row_number, "B", entry["name"])
@@ -467,7 +798,7 @@ def build_employee_rows_from_roster(
                 # Keep any template commission-total formula in column G.
                 set_numeric_cell(row_elem, row_number, "G", 0.0, preserve_formula=True)
 
-    return employee_rows
+    return employee_rows, reimbursement_row
 
 
 def load_tips_csv(
@@ -774,9 +1105,12 @@ def fill_workbook(
         if sheet_data is None:
             raise ValueError("Could not find sheetData in xl/worksheets/sheet1.xml")
 
+        reimbursement_row = 101
         if roster_path:
             roster_entries = load_roster(roster_path)
-            employee_rows = build_employee_rows_from_roster(sheet_data, roster_entries)
+            employee_rows, reimbursement_row = build_employee_rows_from_roster(
+                sheet1_root, sheet_data, roster_entries
+            )
         else:
             employee_rows = []
             current_home_company: str | None = None
@@ -875,7 +1209,13 @@ def fill_workbook(
                 set_numeric_cell(row_elem, row_number, "G", tip_total, preserve_formula=True)
 
         # Replace Google Sheets-only formula with Excel-compatible IF formula.
-        set_formula_string_cell(sheet_data, 101, "B", B101_SAFE_FORMULA)
+        due_row = reimbursement_row - 8
+        set_formula_string_cell(
+            sheet_data,
+            reimbursement_row,
+            "B",
+            reimbursement_status_formula(due_row),
+        )
 
         # Preserve full line visibility in generated workbook.
         ensure_all_rows_visible(sheet1_root)

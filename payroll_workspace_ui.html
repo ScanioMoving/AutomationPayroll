@@ -768,7 +768,7 @@
     }
 
     .print-main-table th {
-      background: #9fb8db;
+      background: #7f9fc9;
       color: #ffffff;
       font-size: 12px;
       font-weight: 700;
@@ -793,14 +793,14 @@
     }
 
     .print-main-table .day-col {
-      width: 30px;
-      text-align: right;
+      width: 28px;
+      text-align: left;
       font-weight: 700;
     }
 
     .print-main-table .date-col {
-      width: 64px;
-      text-align: center;
+      width: 62px;
+      text-align: left;
     }
 
     .print-main-table .dept-col {
@@ -823,12 +823,24 @@
       text-align: center;
     }
 
+    .print-main-table .comm-col-head,
+    .print-main-table .notes-col-head {
+      font-size: 10px;
+      letter-spacing: 0;
+    }
+
     .print-main-table .notes-col,
     .print-main-table .notes-col-head {
       width: 200px;
       text-align: left;
       white-space: normal;
       word-break: break-word;
+    }
+
+    .print-main-table thead th:first-child,
+    .print-main-table thead th:nth-child(2) {
+      text-align: left;
+      padding-left: 5px;
     }
 
     .print-main-table .total-col-cell {
@@ -865,7 +877,7 @@
 
     .print-summary-table th,
     .print-dept-table th {
-      background: #9fb8db;
+      background: #7f9fc9;
       color: #ffffff;
       font-weight: 700;
       font-size: 12px;
@@ -1045,8 +1057,9 @@
         <span id="manageStateChip" class="manage-state off">MANAGE OFF</span>
         <button id="addEmployeeBtn" class="manage-only" type="button">Add Employee</button>
         <button id="duplicateBtn" class="secondary manage-only" type="button">Duplicate Selected</button>
-        <button id="hideBtn" class="secondary manage-only" type="button">Hide Selected</button>
-        <button id="showHiddenBtn" class="secondary manage-only" type="button">Show Hidden</button>
+        <button id="hideBtn" class="secondary manage-only" type="button">Make Inactive</button>
+        <button id="activateBtn" class="secondary manage-only" type="button">Make Active</button>
+        <button id="showHiddenBtn" class="secondary manage-only" type="button">Show Inactive</button>
         <button id="removeBtn" class="danger manage-only" type="button">Remove Selected</button>
         <button id="selectAllBtn" class="secondary" type="button">Select All</button>
         <button id="clearSelBtn" class="secondary" type="button">Clear Selection</button>
@@ -1139,6 +1152,7 @@
     const addEmployeeBtn = document.getElementById("addEmployeeBtn");
     const duplicateBtn = document.getElementById("duplicateBtn");
     const hideBtn = document.getElementById("hideBtn");
+    const activateBtn = document.getElementById("activateBtn");
     const showHiddenBtn = document.getElementById("showHiddenBtn");
     const removeBtn = document.getElementById("removeBtn");
     const sortNameIndicator = document.getElementById("sortNameIndicator");
@@ -1781,7 +1795,7 @@
       const rateReadonly = metaEditable ? "" : " readonly";
       const rateLocked = metaEditable ? "" : " locked";
       const rateDisabled = metaEditable ? "" : " disabled";
-      const hiddenBadge = employee.isHidden ? '<span class="hidden-badge">Hidden</span>' : "";
+      const hiddenBadge = employee.isHidden ? '<span class="hidden-badge">Inactive</span>' : "";
 
       return (
         '<tr class="' + rowClass + '" data-id="' + employee.id + '">' +
@@ -2115,6 +2129,7 @@
       addEmployeeBtn.disabled = !manageMode;
       duplicateBtn.disabled = !manageMode;
       hideBtn.disabled = !manageMode;
+      activateBtn.disabled = !manageMode;
       showHiddenBtn.disabled = !manageMode;
       removeBtn.disabled = !manageMode;
     }
@@ -2379,37 +2394,45 @@
       queueAutoSave();
     }
 
-    async function hideSelectedFromRoster() {
+    async function setSelectedInactiveState(makeInactive) {
       if (!manageMode) {
-        setActionHint("Turn on Manage mode to hide employees.", true);
+        setActionHint("Turn on Manage mode to manage inactive employees.", true);
         return;
       }
       const chosen = selectedEmployees();
       if (chosen.length === 0) {
-        setActionHint("Select employees first to hide.", true);
+        setActionHint(
+          makeInactive
+            ? "Select employees first to make inactive."
+            : "Select employees first to make active.",
+          true
+        );
         return;
       }
       const names = chosen
         .map((employee) => String(employee.name || "").trim())
         .filter((name) => name.length > 0);
       if (names.length === 0) {
-        setActionHint("Selected rows must have names to be hidden.", true);
+        setActionHint("Selected rows must have names.", true);
         return;
       }
 
-      setActionHint("Hiding selected employees...", false);
+      setActionHint(
+        makeInactive ? "Marking selected employees inactive..." : "Marking selected employees active...",
+        false
+      );
       try {
         const response = await fetch("/api/employees/hide", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ names, hidden: true })
+          body: JSON.stringify({ names, hidden: makeInactive })
         });
         if (response.status === 401) {
           window.location.href = "/login";
           return;
         }
         if (!response.ok) {
-          let message = "Hide failed.";
+          let message = "Update failed.";
           try {
             const payload = await response.json();
             if (payload && payload.error) {
@@ -2425,30 +2448,38 @@
           return;
         }
 
-        const hiddenNameSet = new Set(names.map((name) => name.toLowerCase()));
+        const selectedNameSet = new Set(names.map((name) => name.toLowerCase()));
         employees = employees.filter((employee) => {
           const lowerName = String(employee.name || "").trim().toLowerCase();
-          return !employee.selected || !hiddenNameSet.has(lowerName);
+          const shouldUpdate = employee.selected && selectedNameSet.has(lowerName);
+          if (!shouldUpdate) {
+            return true;
+          }
+          employee.isHidden = !!makeInactive;
+          employee.selected = false;
+          return !makeInactive;
         });
         renderTable();
         setActionHint(
-          "Hidden " + names.length + " employee(s). They will not show for new week selection.",
+          makeInactive
+            ? "Marked " + names.length + " employee(s) inactive."
+            : "Marked " + names.length + " employee(s) active.",
           false
         );
         queueAutoSave();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        setActionHint("Hide failed: " + message, true);
+        setActionHint("Update failed: " + message, true);
       }
     }
 
-    async function showHiddenEmployeesInView() {
+    async function showInactiveEmployeesInView() {
       if (!manageMode) {
-        setActionHint("Turn on Manage mode to show hidden employees.", true);
+        setActionHint("Turn on Manage mode to show inactive employees.", true);
         return;
       }
 
-      setActionHint("Loading hidden employees...", false);
+      setActionHint("Loading inactive employees...", false);
       try {
         let response = await fetch("/api/workspace/employees?include_hidden=1");
         if (response.status === 401) {
@@ -2463,7 +2494,7 @@
           return;
         }
         if (!response.ok) {
-          setActionHint("Could not load hidden employees.", true);
+          setActionHint("Could not load inactive employees.", true);
           return;
         }
 
@@ -2471,7 +2502,7 @@
         const rows = Array.isArray(payload.employees) ? payload.employees : [];
         const hiddenRows = rows.filter((item) => !!item.is_hidden);
         if (hiddenRows.length === 0) {
-          setActionHint("No hidden employees found.", false);
+          setActionHint("No inactive employees found.", false);
           return;
         }
 
@@ -2521,12 +2552,12 @@
 
         renderTable();
         setActionHint(
-          "Showing hidden employees: " + hiddenRows.length + " total (" + added + " added, " + marked + " marked).",
+          "Showing inactive employees: " + hiddenRows.length + " total (" + added + " added, " + marked + " marked).",
           false
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        setActionHint("Could not load hidden employees: " + message, true);
+        setActionHint("Could not load inactive employees: " + message, true);
       }
     }
 
@@ -3086,7 +3117,7 @@
                       "<th>OUT</th>" +
                       "<th>REG</th>" +
                       "<th>OT1</th>" +
-                      "<th>Commissions</th>" +
+                      '<th class="comm-col-head">Comm</th>' +
                       '<th class="notes-col-head">Notes</th>' +
                       "<th>TOTAL</th>" +
                     "</tr>" +
@@ -3169,6 +3200,7 @@
             name: employee.name,
             payrollCompany: employee.payrollCompany,
             rate: safeNumber(employee.rate),
+            isHidden: !!employee.isHidden,
             days: employee.days.map((day) => ({
               companyTimes: day.companyTimes.map((slot) => ({
                 inTime: String(slot.inTime || ""),
@@ -3183,7 +3215,9 @@
     }
 
     function workspaceExportPayload() {
-      return workspaceStatePayload();
+      const payload = workspaceStatePayload();
+      payload.employees = payload.employees.filter((employee) => !employee.isHidden);
+      return payload;
     }
 
     function formatSavedPeriodLabel(period) {
@@ -3230,6 +3264,7 @@
             name: String(item.name || ""),
             payrollCompany,
             rate: safeNumber(item.rate),
+            isHidden: !!(item.isHidden || item.is_hidden || item.isInactive || item.is_inactive),
             commissionsByCompany: Array.isArray(item.commissionsByCompany)
               ? item.commissionsByCompany.map((value) => safeNumber(value))
               : [0, 0, 0],
@@ -3609,7 +3644,7 @@
         renderTable();
         if (!silent) {
           if (includeHidden) {
-            setActionHint("Loaded " + rows.length + " employees (including hidden).", false);
+            setActionHint("Loaded " + rows.length + " employees (including inactive).", false);
           } else {
             setActionHint("Loaded " + rows.length + " employees from roster/template.", false);
           }
@@ -3885,7 +3920,7 @@
       renderTable();
       setActionHint(
         manageMode
-          ? "Manage mode ON. You can edit name/payroll company and add/remove rows."
+          ? "Manage mode ON. You can edit name/payroll company, add/remove rows, and manage active/inactive employees."
           : "Manage mode OFF. Name and payroll company are locked.",
         false
       );
@@ -3902,8 +3937,9 @@
       queueAutoSave();
     });
     duplicateBtn.addEventListener("click", duplicateSelected);
-    hideBtn.addEventListener("click", hideSelectedFromRoster);
-    showHiddenBtn.addEventListener("click", showHiddenEmployeesInView);
+    hideBtn.addEventListener("click", () => setSelectedInactiveState(true));
+    activateBtn.addEventListener("click", () => setSelectedInactiveState(false));
+    showHiddenBtn.addEventListener("click", showInactiveEmployeesInView);
     removeBtn.addEventListener("click", removeSelected);
     sortableHeaders.forEach((header) => {
       header.addEventListener("click", () => {
