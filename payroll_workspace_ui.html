@@ -180,9 +180,38 @@
       gap: 4px;
     }
 
+    .bulk-time-wrap {
+      align-items: stretch;
+    }
+
     .time-input-wrap input {
       min-width: 0;
       flex: 1 1 auto;
+    }
+
+    .time-stepper {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      width: 28px;
+      flex: 0 0 28px;
+    }
+
+    .time-step-btn {
+      width: 28px;
+      height: 16px;
+      border: 1px solid #9bb3ca;
+      border-radius: 3px;
+      background: #edf5ff;
+      color: #18324c;
+      font-size: 10px;
+      line-height: 1;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .time-step-btn:hover {
+      background: #dfefff;
     }
 
     .time-pick-btn {
@@ -1100,15 +1129,23 @@
         </div>
         <div class="field">
           <label>IN</label>
-          <div class="time-input-wrap">
+          <div class="time-input-wrap bulk-time-wrap">
             <input type="time" id="bulkInInput" step="900" />
+            <div class="time-stepper" aria-label="Bulk IN stepper">
+              <button type="button" class="time-step-btn" data-action="step-time" data-target="bulkInInput" data-dir="up" aria-label="Increase IN by 15 minutes">▲</button>
+              <button type="button" class="time-step-btn" data-action="step-time" data-target="bulkInInput" data-dir="down" aria-label="Decrease IN by 15 minutes">▼</button>
+            </div>
             <button type="button" class="time-pick-btn" data-action="pick-time" data-target="bulkInInput" aria-label="Pick IN time">🕒</button>
           </div>
         </div>
         <div class="field">
           <label>OUT</label>
-          <div class="time-input-wrap">
+          <div class="time-input-wrap bulk-time-wrap">
             <input type="time" id="bulkOutInput" step="900" />
+            <div class="time-stepper" aria-label="Bulk OUT stepper">
+              <button type="button" class="time-step-btn" data-action="step-time" data-target="bulkOutInput" data-dir="up" aria-label="Increase OUT by 15 minutes">▲</button>
+              <button type="button" class="time-step-btn" data-action="step-time" data-target="bulkOutInput" data-dir="down" aria-label="Decrease OUT by 15 minutes">▼</button>
+            </div>
             <button type="button" class="time-pick-btn" data-action="pick-time" data-target="bulkOutInput" aria-label="Pick OUT time">🕒</button>
           </div>
         </div>
@@ -1655,6 +1692,25 @@
       activeTimeQuickInput.dispatchEvent(new Event("input", { bubbles: true }));
       activeTimeQuickInput.dispatchEvent(new Event("change", { bubbles: true }));
       closeTimeQuickMenu();
+    }
+
+    function stepBulkTimeInput(inputId, directionText) {
+      const input = inputId ? document.getElementById(inputId) : null;
+      if (!input) {
+        return;
+      }
+      const direction = String(directionText || "").toLowerCase() === "down" ? -1 : 1;
+      let minutes = parseTimeToMinutes(input.value);
+      if (minutes === null) {
+        minutes = direction > 0 ? 0 : (24 * 60 - 15);
+      } else {
+        minutes = ((minutes + direction * 15) % (24 * 60) + (24 * 60)) % (24 * 60);
+      }
+      const normalized = minutesToTime(minutes);
+      input.value = timeValueForInput(normalized);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      input.focus();
     }
 
     function normalizeTimeValue(value) {
@@ -4402,6 +4458,16 @@
     }
 
     document.addEventListener("click", (event) => {
+      const stepBtn = event.target.closest('button[data-action="step-time"]');
+      if (stepBtn) {
+        closeTimeQuickMenu();
+        stepBulkTimeInput(
+          String(stepBtn.dataset.target || ""),
+          String(stepBtn.dataset.dir || "up")
+        );
+        return;
+      }
+
       const pickBtn = event.target.closest('button[data-action="pick-time"]');
       if (pickBtn) {
         if (WINDOWS_TIME_TEXT_MODE) {
