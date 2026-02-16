@@ -1115,8 +1115,8 @@
         <div class="field mode-field">
           <label>Mode</label>
           <select id="bulkModeInput">
+            <option value="replace" selected>Replace Bucket Value</option>
             <option value="add">Add to Existing</option>
-            <option value="replace">Replace Bucket Value</option>
           </select>
         </div>
         <div class="field note-field">
@@ -2592,6 +2592,14 @@
       return String(value || "").trim().toLowerCase();
     }
 
+    function searchTextValue(value) {
+      return String(value || "")
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLowerCase();
+    }
+
     function compareEmployeesByName(a, b) {
       const nameA = textSortValue(a.name);
       const nameB = textSortValue(b.name);
@@ -2603,14 +2611,24 @@
     }
 
     function searchEmployees(query) {
-      const queryText = textSortValue(query);
+      const queryText = searchTextValue(query);
       const ordered = employees.slice().sort(compareEmployeesByName);
       if (!queryText) {
         return ordered.slice(0, 24);
       }
+      const queryTokens = queryText.split(/\s+/).filter(Boolean);
       return ordered
-        .filter((employee) => textSortValue(employee.name).includes(queryText))
+        .filter((employee) => {
+          const nameText = searchTextValue(employee.name);
+          return queryTokens.every((token) => nameText.includes(token));
+        })
         .slice(0, 40);
+    }
+
+    function clearBulkSearchInput() {
+      bulkEmployeeSearchInput.value = "";
+      bulkEmployeeSearchResults.hidden = true;
+      bulkEmployeeSearchResults.innerHTML = "";
     }
 
     function renderBulkSearchResults() {
@@ -2955,7 +2973,7 @@
       bulkInInput.value = "";
       bulkOutInput.value = "";
       bulkNoteInput.value = "";
-      bulkModeInput.value = "add";
+      bulkModeInput.value = "replace";
       resetBulkReferenceState();
       setActionHint("Cleared bulk entry fields.", false);
     }
@@ -4251,6 +4269,7 @@
         (shouldSelect ? "Selected " : "Unselected ") + (targetEmployee.name || "employee") + ".",
         false
       );
+      clearBulkSearchInput();
     });
 
     bulkEmployeeSearchInput.addEventListener("blur", () => {
@@ -4280,7 +4299,7 @@
         (shouldSelect ? "Selected " : "Unselected ") + (employee.name || "employee") + ".",
         false
       );
-      bulkEmployeeSearchInput.focus();
+      clearBulkSearchInput();
     });
 
     bulkSelectedNames.addEventListener("click", (event) => {
