@@ -2061,19 +2061,97 @@
       document.title = "Batch_Report_Sea_and_Air(" + formatIsoDate(nycToday) + ")";
     }
 
-    async function resetWeekTemplateFromRoster() {
+    function employeeNameKey(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function applyLatestRateMap(rateMap) {
+      if (!(rateMap instanceof Map) || rateMap.size === 0) {
+        return 0;
+      }
+      let updated = 0;
+      employees.forEach((employee) => {
+        const key = employeeNameKey(employee.name);
+        if (!key || !rateMap.has(key)) {
+          return;
+        }
+        const latestRate = safeNumber(rateMap.get(key));
+        if (!Number.isFinite(latestRate) || latestRate < 0) {
+          return;
+        }
+        if (Math.abs(safeNumber(employee.rate) - latestRate) > 1e-9) {
+          employee.rate = latestRate;
+          updated += 1;
+        }
+      });
+      return updated;
+    }
+
+    async function fetchLatestSavedWeekRateMap(periods) {
+      const rateMap = new Map();
+      if (!Array.isArray(periods) || periods.length === 0) {
+        return rateMap;
+      }
+      const latestPeriodId = String(periods[0].id || "").trim();
+      if (!latestPeriodId) {
+        return rateMap;
+      }
+      try {
+        const response = await fetch("/api/workspace/periods/" + encodeURIComponent(latestPeriodId));
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return rateMap;
+        }
+        if (!response.ok) {
+          return rateMap;
+        }
+        const payload = await response.json();
+        const period = payload.period || {};
+        const state = period.payload && typeof period.payload === "object"
+          ? period.payload
+          : period;
+        const rows = Array.isArray(state.employees) ? state.employees : [];
+        rows.forEach((row) => {
+          if (!row || typeof row !== "object") {
+            return;
+          }
+          const key = employeeNameKey(row.name);
+          if (!key) {
+            return;
+          }
+          const rate = safeNumber(row.rate);
+          if (rate > 0 || !rateMap.has(key)) {
+            rateMap.set(key, rate);
+          }
+        });
+      } catch {
+        return rateMap;
+      }
+      return rateMap;
+    }
+
+    async function resetWeekTemplateFromRoster(options) {
+      const opts = options && typeof options === "object" ? options : {};
+      const latestRateMap = opts.latestRateMap instanceof Map ? opts.latestRateMap : new Map();
+
       const loadedRoster = await loadEmployeesFromRoster({ silent: true });
       if (loadedRoster) {
+        const ratesUpdated = applyLatestRateMap(latestRateMap);
+        if (ratesUpdated > 0) {
+          renderTable();
+        }
         periodNoteInput.value = "";
-        return;
+        return { loadedRoster: true, ratesUpdated };
       }
       employees.forEach((employee) => {
         employee.selected = false;
         employee.days = DAY_NAMES.map(() => newDayEntry());
         employee.commissionsByCompany = [0, 0, 0];
       });
+      const ratesUpdated = applyLatestRateMap(latestRateMap);
       periodNoteInput.value = "";
       renderTable();
+      return { loadedRoster: false, ratesUpdated };
     }
 
     async function loadOrClearForSelectedWeekStart() {
@@ -2100,13 +2178,18 @@
       suppressAutoSave = true;
       detailReferenceLocks.clear();
       resetBulkReferenceState();
-      await resetWeekTemplateFromRoster();
+      const latestRateMap = await fetchLatestSavedWeekRateMap(periods);
+      const resetResult = await resetWeekTemplateFromRoster({ latestRateMap });
       suppressAutoSave = false;
       autoSaveDirty = false;
       historySelect.value = "";
       const weekEnd = addDays(weekStart, 6);
+      const ratesHint =
+        resetResult && resetResult.ratesUpdated > 0
+          ? " Loaded latest hourly rates from the most recent saved week."
+          : "";
       setActionHint(
-        "No saved data for " + formatUsShortDate(weekStart) + " - " + formatUsShortDate(weekEnd) + ". Cleared template.",
+        "No saved data for " + formatUsShortDate(weekStart) + " - " + formatUsShortDate(weekEnd) + ". Cleared template." + ratesHint,
         false
       );
       return false;
