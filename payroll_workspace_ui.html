@@ -156,7 +156,7 @@
     .bulk-grid {
       display: grid;
       gap: 8px;
-      grid-template-columns: 160px 185px 110px 110px 110px 150px minmax(220px, 1fr) auto;
+      grid-template-columns: 160px 185px 110px 110px 110px 150px minmax(220px, 1fr) auto auto;
       align-items: end;
     }
 
@@ -168,9 +168,76 @@
       min-width: 200px;
     }
 
-    #bulkApplyBtn {
+    #bulkApplyBtn,
+    #bulkClearBtn {
       white-space: nowrap;
       align-self: end;
+    }
+
+    .time-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .time-input-wrap input {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .time-pick-btn {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      min-width: 30px;
+      height: 34px;
+      border: 1px solid #9bb3ca;
+      border-radius: 4px;
+      background: #edf5ff;
+      color: #18324c;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    body.time-text-mode .time-pick-btn {
+      display: inline-flex;
+    }
+
+    .time-quick-menu {
+      position: fixed;
+      z-index: 3000;
+      width: 164px;
+      max-height: 260px;
+      overflow: auto;
+      border: 1px solid #9fb4c9;
+      border-radius: 6px;
+      background: #ffffff;
+      box-shadow: 0 12px 24px rgba(12, 33, 56, 0.22);
+      padding: 4px;
+    }
+
+    .time-quick-row {
+      width: 100%;
+      border: 0;
+      border-radius: 4px;
+      background: #ffffff;
+      color: #1a3550;
+      text-align: left;
+      padding: 6px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .time-quick-row:hover {
+      background: #edf5ff;
+    }
+
+    .time-quick-row.clear {
+      color: #b42318;
+      font-weight: 600;
     }
 
     .bulk-title {
@@ -1033,11 +1100,17 @@
         </div>
         <div class="field">
           <label>IN</label>
-          <input type="time" id="bulkInInput" step="900" />
+          <div class="time-input-wrap">
+            <input type="time" id="bulkInInput" step="900" />
+            <button type="button" class="time-pick-btn" data-action="pick-time" data-target="bulkInInput" aria-label="Pick IN time">🕒</button>
+          </div>
         </div>
         <div class="field">
           <label>OUT</label>
-          <input type="time" id="bulkOutInput" step="900" />
+          <div class="time-input-wrap">
+            <input type="time" id="bulkOutInput" step="900" />
+            <button type="button" class="time-pick-btn" data-action="pick-time" data-target="bulkOutInput" aria-label="Pick OUT time">🕒</button>
+          </div>
         </div>
         <div class="field mode-field">
           <label>Mode</label>
@@ -1050,6 +1123,7 @@
           <label>Job Note (optional)</label>
           <input type="text" id="bulkNoteInput" placeholder="Example: Downtown move" />
         </div>
+        <button id="bulkClearBtn" class="secondary" type="button">Clear Bulk Entry</button>
         <button id="bulkApplyBtn" type="button">Apply To Selected</button>
       </div>
       <div class="bulk-select-zone">
@@ -1126,6 +1200,7 @@
   </div>
 
   <div id="printPages"></div>
+  <div id="timeQuickMenu" class="time-quick-menu" hidden></div>
 
   <script>
     const PAYROLL_COMPANIES = [
@@ -1155,12 +1230,7 @@
         ""
       )
     );
-    const NATIVE_TIME_INPUT_SUPPORTED = (() => {
-      const probe = document.createElement("input");
-      probe.setAttribute("type", "time");
-      return probe.type === "time";
-    })();
-    const WINDOWS_TIME_TEXT_MODE = WINDOWS_PLATFORM && !NATIVE_TIME_INPUT_SUPPORTED;
+    const WINDOWS_TIME_TEXT_MODE = WINDOWS_PLATFORM;
     const TIME_INPUT_TYPE = WINDOWS_TIME_TEXT_MODE ? "text" : "time";
     const TIME_INPUT_EXTRA_ATTRS = WINDOWS_TIME_TEXT_MODE
       ? ' placeholder="9:30 AM"'
@@ -1198,11 +1268,13 @@
     const bulkOutInput = document.getElementById("bulkOutInput");
     const bulkModeInput = document.getElementById("bulkModeInput");
     const bulkNoteInput = document.getElementById("bulkNoteInput");
+    const bulkClearBtn = document.getElementById("bulkClearBtn");
     const bulkEmployeeSearchInput = document.getElementById("bulkEmployeeSearchInput");
     const bulkEmployeeSearchResults = document.getElementById("bulkEmployeeSearchResults");
     const bulkSelectedCount = document.getElementById("bulkSelectedCount");
     const bulkSelectedNames = document.getElementById("bulkSelectedNames");
     const bulkClearSelectedBtn = document.getElementById("bulkClearSelectedBtn");
+    const timeQuickMenu = document.getElementById("timeQuickMenu");
 
     let employees = [];
     let nextEmployeeId = 1;
@@ -1219,6 +1291,11 @@
     let autoSaveDirty = false;
     let pendingDeleteWeekId = "";
     let pendingDeleteTimer = null;
+    let activeTimeQuickInput = null;
+
+    if (WINDOWS_TIME_TEXT_MODE) {
+      document.body.classList.add("time-text-mode");
+    }
 
     function configureTimeInputElement(input) {
       if (!input) {
@@ -1492,6 +1569,92 @@
       const hh = Math.floor(m / 60);
       const mm = m % 60;
       return pad2(hh) + ":" + pad2(mm);
+    }
+
+    function minutesToTextTime(value) {
+      const m = ((Math.round(value) % (24 * 60)) + (24 * 60)) % (24 * 60);
+      const hh = Math.floor(m / 60);
+      const mm = m % 60;
+      const suffix = hh >= 12 ? "PM" : "AM";
+      const hr12 = hh % 12 === 0 ? 12 : hh % 12;
+      return String(hr12) + ":" + pad2(mm) + " " + suffix;
+    }
+
+    function timeValueForInput(value) {
+      const minutes = parseTimeToMinutes(value);
+      if (minutes === null) {
+        return "";
+      }
+      if (WINDOWS_TIME_TEXT_MODE) {
+        return minutesToTextTime(minutes);
+      }
+      return minutesToTime(minutes);
+    }
+
+    function renderTimeQuickMenu() {
+      if (!timeQuickMenu || !WINDOWS_TIME_TEXT_MODE) {
+        return;
+      }
+      if (timeQuickMenu.dataset.ready === "1") {
+        return;
+      }
+      const rows = [
+        '<button type="button" class="time-quick-row clear" data-time-clear="1">Clear time</button>'
+      ];
+      for (let minute = 0; minute < 24 * 60; minute += 15) {
+        const label = minutesToTextTime(minute);
+        rows.push(
+          '<button type="button" class="time-quick-row" data-time-value="' + label + '">' +
+          label +
+          "</button>"
+        );
+      }
+      timeQuickMenu.innerHTML = rows.join("");
+      timeQuickMenu.dataset.ready = "1";
+    }
+
+    function closeTimeQuickMenu() {
+      if (!timeQuickMenu) {
+        return;
+      }
+      timeQuickMenu.hidden = true;
+      activeTimeQuickInput = null;
+    }
+
+    function openTimeQuickMenu(input, anchor) {
+      if (!timeQuickMenu || !input || !anchor || !WINDOWS_TIME_TEXT_MODE) {
+        return;
+      }
+      renderTimeQuickMenu();
+      activeTimeQuickInput = input;
+
+      const rect = anchor.getBoundingClientRect();
+      const estimatedWidth = 170;
+      const estimatedHeight = 260;
+      let left = rect.left;
+      let top = rect.bottom + 4;
+      if (left + estimatedWidth > window.innerWidth - 8) {
+        left = window.innerWidth - estimatedWidth - 8;
+      }
+      if (top + estimatedHeight > window.innerHeight - 8) {
+        top = rect.top - estimatedHeight - 4;
+      }
+      left = Math.max(8, left);
+      top = Math.max(8, top);
+
+      timeQuickMenu.style.left = left + "px";
+      timeQuickMenu.style.top = top + "px";
+      timeQuickMenu.hidden = false;
+    }
+
+    function setTimeInputFromQuickMenu(value) {
+      if (!activeTimeQuickInput) {
+        return;
+      }
+      activeTimeQuickInput.value = value;
+      activeTimeQuickInput.dispatchEvent(new Event("input", { bubbles: true }));
+      activeTimeQuickInput.dispatchEvent(new Event("change", { bubbles: true }));
+      closeTimeQuickMenu();
     }
 
     function normalizeTimeValue(value) {
@@ -1947,9 +2110,17 @@
         const total = dayTotal(day);
         const companyTimeCells = TRACKED_COMPANIES.map((_, companyIndex) => {
           const slot = day.companyTimes[companyIndex];
+          const inInputId = "detail_in_" + employee.id + "_" + dayIndex + "_" + companyIndex;
+          const outInputId = "detail_out_" + employee.id + "_" + dayIndex + "_" + companyIndex;
           return (
-            '<td><input type="' + TIME_INPUT_TYPE + '" class="sheet-input"' + TIME_INPUT_EXTRA_ATTRS + ' data-field="company-in-time" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" value="' + escapeHtml(slot.inTime) + '" /></td>' +
-            '<td><input type="' + TIME_INPUT_TYPE + '" class="sheet-input"' + TIME_INPUT_EXTRA_ATTRS + ' data-field="company-out-time" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" value="' + escapeHtml(slot.outTime) + '" /></td>' +
+            '<td><div class="time-input-wrap">' +
+              '<input id="' + inInputId + '" type="' + TIME_INPUT_TYPE + '" class="sheet-input"' + TIME_INPUT_EXTRA_ATTRS + ' data-field="company-in-time" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" value="' + escapeHtml(timeValueForInput(slot.inTime)) + '" />' +
+              '<button type="button" class="time-pick-btn" data-action="pick-time" data-target="' + inInputId + '" aria-label="Pick IN time">🕒</button>' +
+            "</div></td>" +
+            '<td><div class="time-input-wrap">' +
+              '<input id="' + outInputId + '" type="' + TIME_INPUT_TYPE + '" class="sheet-input"' + TIME_INPUT_EXTRA_ATTRS + ' data-field="company-out-time" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" value="' + escapeHtml(timeValueForInput(slot.outTime)) + '" />' +
+              '<button type="button" class="time-pick-btn" data-action="pick-time" data-target="' + outInputId + '" aria-label="Pick OUT time">🕒</button>' +
+            "</div></td>" +
             '<td><input type="number" class="sheet-input num" data-field="hour" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" min="0" step="0.5" value="' + safeNumber(day.hours[companyIndex]).toFixed(2) + '" /></td>'
           );
         }).join("");
@@ -2073,14 +2244,14 @@
             'input[data-field="company-in-time"][data-id="' + employeeId + '"][data-day="' + dayIndex + '"][data-company="' + companyIndex + '"]'
           );
           if (inCell) {
-            setInputValueIfNotFocused(inCell, day.companyTimes[companyIndex].inTime);
+            setInputValueIfNotFocused(inCell, timeValueForInput(day.companyTimes[companyIndex].inTime));
           }
 
           const outCell = tbody.querySelector(
             'input[data-field="company-out-time"][data-id="' + employeeId + '"][data-day="' + dayIndex + '"][data-company="' + companyIndex + '"]'
           );
           if (outCell) {
-            setInputValueIfNotFocused(outCell, day.companyTimes[companyIndex].outTime);
+            setInputValueIfNotFocused(outCell, timeValueForInput(day.companyTimes[companyIndex].outTime));
           }
         }
       }
@@ -2779,6 +2950,16 @@
       setActionHint(expanded ? "Expanded all daily sections." : "Collapsed all daily sections.", false);
     }
 
+    function clearBulkEntryFields() {
+      bulkHoursInput.value = "0";
+      bulkInInput.value = "";
+      bulkOutInput.value = "";
+      bulkNoteInput.value = "";
+      bulkModeInput.value = "add";
+      resetBulkReferenceState();
+      setActionHint("Cleared bulk entry fields.", false);
+    }
+
     function applyBulkToSelected() {
       const chosen = selectedEmployees();
       if (chosen.length === 0) {
@@ -2804,8 +2985,8 @@
         return;
       }
 
-      const finalIn = resolved.finalIn;
-      const finalOut = resolved.finalOut;
+      const finalIn = normalizeTimeValue(resolved.finalIn);
+      const finalOut = normalizeTimeValue(resolved.finalOut);
       const finalHours = resolved.finalHours;
       const useHours = resolved.useHours;
 
@@ -2841,7 +3022,11 @@
         detailParts.push(finalHours.toFixed(2) + " hours");
       }
       if (finalIn || finalOut) {
-        detailParts.push((finalIn || "--:--") + " to " + (finalOut || "--:--"));
+        detailParts.push(
+          (finalIn ? timeValueForInput(finalIn) : "--:--") +
+          " to " +
+          (finalOut ? timeValueForInput(finalOut) : "--:--")
+        );
       }
       if (note) {
         detailParts.push("note");
@@ -2954,14 +3139,16 @@
 
     function applyResolvedBulkField(field, resolved) {
       if (field === "in") {
-        if (bulkInInput.value !== resolved.finalIn) {
-          bulkInInput.value = resolved.finalIn;
+        const displayIn = timeValueForInput(resolved.finalIn);
+        if (bulkInInput.value !== displayIn) {
+          bulkInInput.value = displayIn;
         }
         return;
       }
       if (field === "out") {
-        if (bulkOutInput.value !== resolved.finalOut) {
-          bulkOutInput.value = resolved.finalOut;
+        const displayOut = timeValueForInput(resolved.finalOut);
+        if (bulkOutInput.value !== displayOut) {
+          bulkOutInput.value = displayOut;
         }
         return;
       }
@@ -3055,14 +3242,16 @@
     function autofillBulkFields(changedField) {
       if (changedField === "in" && bulkInInput.value) {
         const snapped = snapTimeToQuarter(bulkInInput.value);
-        if (snapped !== bulkInInput.value) {
-          bulkInInput.value = snapped;
+        const displayIn = timeValueForInput(snapped);
+        if (displayIn !== bulkInInput.value) {
+          bulkInInput.value = displayIn;
         }
       }
       if (changedField === "out" && bulkOutInput.value) {
         const snapped = snapTimeToQuarter(bulkOutInput.value);
-        if (snapped !== bulkOutInput.value) {
-          bulkOutInput.value = snapped;
+        const displayOut = timeValueForInput(snapped);
+        if (displayOut !== bulkOutInput.value) {
+          bulkOutInput.value = displayOut;
         }
       }
       const inTime = String(bulkInInput.value || "");
@@ -3994,10 +4183,12 @@
         const companyIndex = Number(target.dataset.company);
         if (dayIndex >= 0 && dayIndex < 7 && companyIndex >= 0 && companyIndex < 3) {
           const snapped = snapTimeToQuarter(String(target.value || ""));
-          if (snapped !== target.value) {
-            target.value = snapped;
+          const normalized = normalizeTimeValue(snapped);
+          const display = timeValueForInput(normalized);
+          if (display !== target.value) {
+            target.value = display;
           }
-          employee.days[dayIndex].companyTimes[companyIndex].inTime = snapped;
+          employee.days[dayIndex].companyTimes[companyIndex].inTime = normalized;
           applyTimeAutofill(employee, dayIndex, companyIndex, "company-in-time");
           updateEmployeeSummaryCells(employeeId);
           updateAllSummaries();
@@ -4011,10 +4202,12 @@
         const companyIndex = Number(target.dataset.company);
         if (dayIndex >= 0 && dayIndex < 7 && companyIndex >= 0 && companyIndex < 3) {
           const snapped = snapTimeToQuarter(String(target.value || ""));
-          if (snapped !== target.value) {
-            target.value = snapped;
+          const normalized = normalizeTimeValue(snapped);
+          const display = timeValueForInput(normalized);
+          if (display !== target.value) {
+            target.value = display;
           }
-          employee.days[dayIndex].companyTimes[companyIndex].outTime = snapped;
+          employee.days[dayIndex].companyTimes[companyIndex].outTime = normalized;
           applyTimeAutofill(employee, dayIndex, companyIndex, "company-out-time");
           updateEmployeeSummaryCells(employeeId);
           updateAllSummaries();
@@ -4164,6 +4357,7 @@
     exportXlsxBtn.addEventListener("click", exportFilledWorkbook);
     document.getElementById("printBtn").addEventListener("click", printToPdf);
     document.getElementById("bulkApplyBtn").addEventListener("click", applyBulkToSelected);
+    bulkClearBtn.addEventListener("click", clearBulkEntryFields);
     bulkInInput.addEventListener("input", () => autofillBulkFields("in"));
     bulkOutInput.addEventListener("input", () => autofillBulkFields("out"));
     bulkHoursInput.addEventListener("input", () => autofillBulkFields("hours"));
@@ -4171,17 +4365,53 @@
     bulkOutInput.addEventListener("change", () => autofillBulkFields("out"));
     bulkHoursInput.addEventListener("change", () => autofillBulkFields("hours"));
 
+    if (timeQuickMenu) {
+      timeQuickMenu.addEventListener("click", (event) => {
+        const clearBtn = event.target.closest('button[data-time-clear]');
+        if (clearBtn) {
+          event.preventDefault();
+          setTimeInputFromQuickMenu("");
+          return;
+        }
+        const valueBtn = event.target.closest('button[data-time-value]');
+        if (!valueBtn) {
+          return;
+        }
+        event.preventDefault();
+        setTimeInputFromQuickMenu(String(valueBtn.dataset.timeValue || ""));
+      });
+    }
+
     document.addEventListener("click", (event) => {
-      const timeInput = event.target.closest('input[type="time"]');
-      if (!timeInput) {
+      const pickBtn = event.target.closest('button[data-action="pick-time"]');
+      if (pickBtn) {
+        if (WINDOWS_TIME_TEXT_MODE) {
+          const inputId = String(pickBtn.dataset.target || "");
+          const input = inputId ? document.getElementById(inputId) : null;
+          if (input) {
+            openTimeQuickMenu(input, pickBtn);
+          }
+        }
         return;
       }
-      if (typeof timeInput.showPicker === "function") {
+
+      const timeInput = event.target.closest('input[type="time"]');
+      if (timeInput && !WINDOWS_TIME_TEXT_MODE && typeof timeInput.showPicker === "function") {
         try {
           timeInput.showPicker();
         } catch {
           // Ignore browsers that block programmatic picker opens.
         }
+      }
+
+      if (timeQuickMenu && !timeQuickMenu.hidden && !timeQuickMenu.contains(event.target)) {
+        closeTimeQuickMenu();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeTimeQuickMenu();
       }
     });
 
