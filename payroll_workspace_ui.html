@@ -1147,6 +1147,18 @@
       flat_price: "Flat Price"
     };
     const DAY_NAMES = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
+    const WINDOWS_TIME_TEXT_MODE = /windows/i.test(
+      String(
+        (navigator.userAgentData && navigator.userAgentData.platform) ||
+        navigator.platform ||
+        navigator.userAgent ||
+        ""
+      )
+    );
+    const TIME_INPUT_TYPE = WINDOWS_TIME_TEXT_MODE ? "text" : "time";
+    const TIME_INPUT_EXTRA_ATTRS = WINDOWS_TIME_TEXT_MODE
+      ? ' inputmode="numeric" placeholder="HH:MM"'
+      : ' step="900"';
 
     const tbody = document.getElementById("payrollBody");
     const weekStartInput = document.getElementById("weekStartInput");
@@ -1201,6 +1213,26 @@
     let autoSaveDirty = false;
     let pendingDeleteWeekId = "";
     let pendingDeleteTimer = null;
+
+    function configureTimeInputElement(input) {
+      if (!input) {
+        return;
+      }
+      input.type = TIME_INPUT_TYPE;
+      if (TIME_INPUT_TYPE === "time") {
+        input.setAttribute("step", "900");
+        input.removeAttribute("inputmode");
+        if (input.placeholder === "HH:MM") {
+          input.removeAttribute("placeholder");
+        }
+        return;
+      }
+      input.removeAttribute("step");
+      input.setAttribute("inputmode", "numeric");
+      if (!input.placeholder) {
+        input.placeholder = "HH:MM";
+      }
+    }
 
     function pad2(value) {
       return String(value).padStart(2, "0");
@@ -1298,13 +1330,12 @@
     }
 
     function formatTime12(value) {
-      if (!value || !/^\d{2}:\d{2}$/.test(value)) {
+      const minutes = parseTimeToMinutes(value);
+      if (minutes === null) {
         return "";
       }
-      const [hh, mm] = value.split(":").map(Number);
-      if (!Number.isFinite(hh) || !Number.isFinite(mm)) {
-        return "";
-      }
+      const hh = Math.floor(minutes / 60) % 24;
+      const mm = minutes % 60;
       const suffix = hh >= 12 ? "PM" : "AM";
       const hr12 = hh % 12 === 0 ? 12 : hh % 12;
       return pad2(hr12) + ":" + pad2(mm) + " " + suffix;
@@ -1360,19 +1391,12 @@
     }
 
     function calcHoursFromTimes(inTime, outTime) {
-      if (!inTime || !outTime) {
+      const inMinutes = parseTimeToMinutes(inTime);
+      const outParsed = parseTimeToMinutes(outTime);
+      if (inMinutes === null || outParsed === null) {
         return 0;
       }
-      if (!/^\d{2}:\d{2}$/.test(inTime) || !/^\d{2}:\d{2}$/.test(outTime)) {
-        return 0;
-      }
-      const [inH, inM] = inTime.split(":").map(Number);
-      const [outH, outM] = outTime.split(":").map(Number);
-      if (![inH, inM, outH, outM].every(Number.isFinite)) {
-        return 0;
-      }
-      const inMinutes = inH * 60 + inM;
-      let outMinutes = outH * 60 + outM;
+      let outMinutes = outParsed;
       if (outMinutes < inMinutes) {
         outMinutes += 24 * 60;
       }
@@ -1381,11 +1405,38 @@
     }
 
     function parseTimeToMinutes(value) {
-      if (!value || !/^\d{2}:\d{2}$/.test(value)) {
+      if (value === null || value === undefined) {
         return null;
       }
-      const [hh, mm] = value.split(":").map(Number);
-      if (!Number.isFinite(hh) || !Number.isFinite(mm)) {
+      const raw = String(value).trim();
+      if (!raw) {
+        return null;
+      }
+      const match = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
+      if (!match) {
+        return null;
+      }
+      let hh = Number(match[1]);
+      const mm = Number(match[2]);
+      const sec = match[3] ? Number(match[3]) : 0;
+      const ampm = match[4] ? match[4].toUpperCase() : "";
+      if (!Number.isFinite(hh) || !Number.isFinite(mm) || !Number.isFinite(sec)) {
+        return null;
+      }
+      if (mm < 0 || mm > 59 || sec < 0 || sec > 59) {
+        return null;
+      }
+      if (ampm) {
+        if (hh < 1 || hh > 12) {
+          return null;
+        }
+        if (hh === 12) {
+          hh = 0;
+        }
+        if (ampm === "PM") {
+          hh += 12;
+        }
+      } else if (hh < 0 || hh > 23) {
         return null;
       }
       return hh * 60 + mm;
@@ -1396,6 +1447,14 @@
       const hh = Math.floor(m / 60);
       const mm = m % 60;
       return pad2(hh) + ":" + pad2(mm);
+    }
+
+    function normalizeTimeValue(value) {
+      const minutes = parseTimeToMinutes(value);
+      if (minutes === null) {
+        return "";
+      }
+      return minutesToTime(minutes);
     }
 
     function snapTimeToQuarter(value) {
@@ -1440,8 +1499,8 @@
         for (let idx = 0; idx < 3; idx += 1) {
           const slot = seed.companyTimes[idx] || {};
           companyTimes[idx] = {
-            inTime: typeof slot.inTime === "string" ? slot.inTime : "",
-            outTime: typeof slot.outTime === "string" ? slot.outTime : ""
+            inTime: normalizeTimeValue(typeof slot.inTime === "string" ? slot.inTime : ""),
+            outTime: normalizeTimeValue(typeof slot.outTime === "string" ? slot.outTime : "")
           };
         }
       } else if (seed && (seed.inTime || seed.outTime)) {
@@ -1455,8 +1514,8 @@
           }
         }
         companyTimes[bucket] = {
-          inTime: typeof seed.inTime === "string" ? seed.inTime : "",
-          outTime: typeof seed.outTime === "string" ? seed.outTime : ""
+          inTime: normalizeTimeValue(typeof seed.inTime === "string" ? seed.inTime : ""),
+          outTime: normalizeTimeValue(typeof seed.outTime === "string" ? seed.outTime : "")
         };
       }
       return {
@@ -1844,8 +1903,8 @@
         const companyTimeCells = TRACKED_COMPANIES.map((_, companyIndex) => {
           const slot = day.companyTimes[companyIndex];
           return (
-            '<td><input type="time" class="sheet-input" step="900" data-field="company-in-time" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" value="' + escapeHtml(slot.inTime) + '" /></td>' +
-            '<td><input type="time" class="sheet-input" step="900" data-field="company-out-time" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" value="' + escapeHtml(slot.outTime) + '" /></td>' +
+            '<td><input type="' + TIME_INPUT_TYPE + '" class="sheet-input"' + TIME_INPUT_EXTRA_ATTRS + ' data-field="company-in-time" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" value="' + escapeHtml(slot.inTime) + '" /></td>' +
+            '<td><input type="' + TIME_INPUT_TYPE + '" class="sheet-input"' + TIME_INPUT_EXTRA_ATTRS + ' data-field="company-out-time" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" value="' + escapeHtml(slot.outTime) + '" /></td>' +
             '<td><input type="number" class="sheet-input num" data-field="hour" data-id="' + employee.id + '" data-day="' + dayIndex + '" data-company="' + companyIndex + '" min="0" step="0.5" value="' + safeNumber(day.hours[companyIndex]).toFixed(2) + '" /></td>'
           );
         }).join("");
@@ -3715,6 +3774,7 @@
         }
         const payload = await response.json();
         const rows = Array.isArray(payload.employees) ? payload.employees : [];
+        const source = String(payload.source || "");
         if (rows.length === 0) {
           return false;
         }
@@ -3724,7 +3784,7 @@
             name: String(item.name || ""),
             payrollCompany: mapRosterCompany(item),
             rate: safeNumber(item.rate),
-            isHidden: !!item.is_hidden,
+            isHidden: !!(item.is_hidden || item.isHidden || item.is_inactive || item.isInactive),
             commissionsByCompany: [0, 0, 0],
             days: DAY_NAMES.map(() => ({
               companyTimes: [
@@ -3743,6 +3803,8 @@
         if (!silent) {
           if (includeHidden) {
             setActionHint("Loaded " + rows.length + " employees (including inactive).", false);
+          } else if (source === "latest_saved_week") {
+            setActionHint("Loaded " + rows.length + " employees from latest saved week.", false);
           } else {
             setActionHint("Loaded " + rows.length + " employees from roster/template.", false);
           }
@@ -4078,6 +4140,8 @@
       }
     });
 
+    configureTimeInputElement(bulkInInput);
+    configureTimeInputElement(bulkOutInput);
     refreshBulkCompanyOptions();
     syncManageControls();
     setWeekStart(weekStart, false);

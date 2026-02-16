@@ -649,6 +649,38 @@ def set_employees_hidden(user_id: int, names: list[str], hidden: bool) -> int:
     return changed
 
 
+def upsert_employees_from_workspace_rows(user_id: int, rows: list[Any]) -> dict[str, int]:
+    defaults = workspace_rows_to_employee_defaults(rows, include_hidden=True)
+    if not defaults:
+        return {"upserted": 0}
+    with db_conn() as con:
+        for row in defaults:
+            home_company = str(row["home_company"])
+            burden = DEFAULT_BURDEN_BY_COMPANY.get(home_company, 1.18)
+            con.execute(
+                """
+                INSERT INTO employees(user_id, name, home_company, rate, burden_multiplier, is_hidden, updated_at)
+                VALUES(?,?,?,?,?,?,?)
+                ON CONFLICT(user_id, name) DO UPDATE SET
+                    home_company = excluded.home_company,
+                    rate = excluded.rate,
+                    burden_multiplier = excluded.burden_multiplier,
+                    is_hidden = excluded.is_hidden,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    user_id,
+                    str(row["name"]),
+                    home_company,
+                    safe_float(row.get("rate"), 0.0),
+                    burden,
+                    1 if bool(row.get("is_hidden")) else 0,
+                    now_ts(),
+                ),
+            )
+    return {"upserted": len(defaults)}
+
+
 def sync_employees_from_template(user_id: int, template_path: Path) -> dict[str, int]:
     items = template_employees(template_path)
     updated = 0
@@ -973,6 +1005,98 @@ def list_payroll_weeks(user_id: int, limit: int = 200) -> list[dict[str, Any]]:
         }
         for row in rows
     ]
+
+
+def latest_payroll_week_payload(user_id: int) -> dict[str, Any] | None:
+    with db_conn() as con:
+        row = con.execute(
+            """
+            SELECT payload_json
+            FROM payroll_weeks
+            WHERE user_id = ?
+            ORDER BY week_start DESC, updated_at DESC
+            LIMIT 1
+            """,
+            (user_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    try:
+        payload = json.loads(str(row["payload_json"] or "{}"))
+        if isinstance(payload, dict):
+            return payload
+    except Exception:
+        return None
+    return None
+
+
+def resolve_home_company_from_workspace_row(row: dict[str, Any]) -> str:
+    explicit = normalize_spaces(str(row.get("home_company") or row.get("homeCompany") or ""))
+    if explicit in DEFAULT_BURDEN_BY_COMPANY:
+        return explicit
+    payroll_label = normalize_spaces(
+        str(
+            row.get("payrollCompany")
+            or row.get("payroll_company_label")
+            or row.get("payroll_company")
+            or ""
+        )
+    )
+    if payroll_label:
+        return home_company_from_label(payroll_label)
+    return "scanio_moving"
+
+
+def resolve_workspace_row_hidden(row: dict[str, Any]) -> bool:
+    raw = row.get("isHidden", row.get("is_hidden", row.get("isInactive", row.get("is_inactive", False))))
+    if isinstance(raw, bool):
+        return raw
+    return parse_bool_flag(str(raw), False)
+
+
+def workspace_rows_to_employee_defaults(
+    rows: list[Any],
+    *,
+    include_hidden: bool,
+) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        name = normalize_spaces(str(item.get("name", "")))
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+
+        hidden = resolve_workspace_row_hidden(item)
+        if hidden and not include_hidden:
+            continue
+
+        home_company = resolve_home_company_from_workspace_row(item)
+        output.append(
+            {
+                "name": name,
+                "home_company": home_company,
+                "home_company_label": dict(COMPANY_OPTIONS).get(home_company, "Scanio Moving"),
+                "rate": safe_float(item.get("rate"), 0.0),
+                "is_hidden": hidden,
+            }
+        )
+    return output
+
+
+def latest_saved_week_employee_defaults(user_id: int, *, include_hidden: bool) -> list[dict[str, Any]]:
+    payload = latest_payroll_week_payload(user_id)
+    if not payload:
+        return []
+    rows = payload.get("employees", [])
+    if not isinstance(rows, list):
+        return []
+    return workspace_rows_to_employee_defaults(rows, include_hidden=include_hidden)
 
 
 def get_payroll_week(user_id: int, period_id: int) -> dict[str, Any] | None:
@@ -1968,11 +2092,16 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
                 ensure_user_employees_seeded(user.user_id)
                 query = parse_qs(parsed.query)
                 include_hidden = parse_bool_flag((query.get("include_hidden") or ["0"])[0], False)
-                rows = get_employees(user.user_id, include_hidden=include_hidden)
+                rows = latest_saved_week_employee_defaults(user.user_id, include_hidden=include_hidden)
+                source = "latest_saved_week"
+                if not rows:
+                    rows = get_employees(user.user_id, include_hidden=include_hidden)
+                    source = "employees_table"
                 json_response(
                     self,
                     {
                         "ok": True,
+                        "source": source,
                         "employees": [
                             {
                                 "name": item["name"],
@@ -2353,6 +2482,8 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
             "employees": raw_rows,
         }
 
+        sync_result = upsert_employees_from_workspace_rows(user.user_id, raw_rows)
+
         period_id = save_payroll_week(
             user_id=user.user_id,
             week_start=payload["week_start"],
@@ -2371,6 +2502,7 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
                 "week_end": payload["week_end"],
                 "pay_period": payload["pay_period"],
                 "updated_at": now_ts(),
+                "roster_upserted": int(sync_result.get("upserted", 0)),
             },
         )
 
