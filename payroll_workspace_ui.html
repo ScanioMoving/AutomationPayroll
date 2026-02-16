@@ -1147,7 +1147,7 @@
       flat_price: "Flat Price"
     };
     const DAY_NAMES = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
-    const WINDOWS_TIME_TEXT_MODE = /windows/i.test(
+    const WINDOWS_PLATFORM = /windows/i.test(
       String(
         (navigator.userAgentData && navigator.userAgentData.platform) ||
         navigator.platform ||
@@ -1155,9 +1155,15 @@
         ""
       )
     );
+    const NATIVE_TIME_INPUT_SUPPORTED = (() => {
+      const probe = document.createElement("input");
+      probe.setAttribute("type", "time");
+      return probe.type === "time";
+    })();
+    const WINDOWS_TIME_TEXT_MODE = WINDOWS_PLATFORM && !NATIVE_TIME_INPUT_SUPPORTED;
     const TIME_INPUT_TYPE = WINDOWS_TIME_TEXT_MODE ? "text" : "time";
     const TIME_INPUT_EXTRA_ATTRS = WINDOWS_TIME_TEXT_MODE
-      ? ' inputmode="numeric" placeholder="HH:MM"'
+      ? ' placeholder="9:30 AM"'
       : ' step="900"';
 
     const tbody = document.getElementById("payrollBody");
@@ -1221,16 +1227,12 @@
       input.type = TIME_INPUT_TYPE;
       if (TIME_INPUT_TYPE === "time") {
         input.setAttribute("step", "900");
-        input.removeAttribute("inputmode");
-        if (input.placeholder === "HH:MM") {
-          input.removeAttribute("placeholder");
-        }
+        input.removeAttribute("placeholder");
         return;
       }
       input.removeAttribute("step");
-      input.setAttribute("inputmode", "numeric");
       if (!input.placeholder) {
-        input.placeholder = "HH:MM";
+        input.placeholder = "9:30 AM";
       }
     }
 
@@ -1408,18 +1410,61 @@
       if (value === null || value === undefined) {
         return null;
       }
-      const raw = String(value).trim();
+      let raw = String(value).trim();
       if (!raw) {
         return null;
       }
-      const match = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
-      if (!match) {
+
+      raw = raw.replace(/\u00a0/g, " ").trim();
+      const suffixMatch = raw.match(/\s*([AaPp])\.?\s*(?:[Mm]\.?)?\s*$/);
+      let ampm = "";
+      if (suffixMatch && suffixMatch[1]) {
+        ampm = suffixMatch[1].toUpperCase() + "M";
+        raw = raw.slice(0, suffixMatch.index).trim();
+      }
+
+      raw = raw.replace(/\./g, ":").replace(/\s+/g, "");
+      if (!raw) {
         return null;
       }
-      let hh = Number(match[1]);
-      const mm = Number(match[2]);
-      const sec = match[3] ? Number(match[3]) : 0;
-      const ampm = match[4] ? match[4].toUpperCase() : "";
+
+      let hh;
+      let mm = 0;
+      let sec = 0;
+      if (raw.includes(":")) {
+        const parts = raw.split(":");
+        if (parts.length < 2 || parts.length > 3) {
+          return null;
+        }
+        if (!/^\d{1,2}$/.test(parts[0])) {
+          return null;
+        }
+        if (!/^\d{1,2}$/.test(parts[1])) {
+          return null;
+        }
+        hh = Number(parts[0]);
+        mm = Number(parts[1]);
+        if (parts.length === 3) {
+          if (!/^\d{1,2}$/.test(parts[2])) {
+            return null;
+          }
+          sec = Number(parts[2]);
+        }
+      } else if (/^\d{1,4}$/.test(raw)) {
+        if (raw.length <= 2) {
+          hh = Number(raw);
+          mm = 0;
+        } else if (raw.length === 3) {
+          hh = Number(raw.slice(0, 1));
+          mm = Number(raw.slice(1, 3));
+        } else {
+          hh = Number(raw.slice(0, 2));
+          mm = Number(raw.slice(2, 4));
+        }
+      } else {
+        return null;
+      }
+
       if (!Number.isFinite(hh) || !Number.isFinite(mm) || !Number.isFinite(sec)) {
         return null;
       }
