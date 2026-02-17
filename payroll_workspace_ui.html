@@ -1259,14 +1259,18 @@
       flat_price: "Flat Price"
     };
     const DAY_NAMES = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
-    const WINDOWS_PLATFORM = /windows/i.test(
-      String(
-        (navigator.userAgentData && navigator.userAgentData.platform) ||
-        navigator.platform ||
-        navigator.userAgent ||
-        ""
-      )
-    );
+    const PLATFORM_PROBE = [
+      (navigator.userAgentData && navigator.userAgentData.platform) || "",
+      navigator.platform || "",
+      navigator.userAgent || ""
+    ]
+      .join(" ")
+      .toLowerCase();
+    const WINDOWS_PLATFORM = (
+      PLATFORM_PROBE.includes("windows") ||
+      PLATFORM_PROBE.includes("win32") ||
+      PLATFORM_PROBE.includes("win64")
+    ) && !PLATFORM_PROBE.includes("darwin");
     const WINDOWS_TIME_TEXT_MODE = WINDOWS_PLATFORM;
     const TIME_INPUT_TYPE = WINDOWS_TIME_TEXT_MODE ? "text" : "time";
     const TIME_INPUT_EXTRA_ATTRS = WINDOWS_TIME_TEXT_MODE
