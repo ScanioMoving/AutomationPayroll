@@ -1271,7 +1271,8 @@
       PLATFORM_PROBE.includes("win32") ||
       PLATFORM_PROBE.includes("win64")
     ) && !PLATFORM_PROBE.includes("darwin");
-    const WINDOWS_TIME_TEXT_MODE = WINDOWS_PLATFORM;
+    const FORCE_AMPM_TEXT_TIME_MODE = true;
+    const WINDOWS_TIME_TEXT_MODE = FORCE_AMPM_TEXT_TIME_MODE || WINDOWS_PLATFORM;
     const TIME_INPUT_TYPE = WINDOWS_TIME_TEXT_MODE ? "text" : "time";
     const TIME_INPUT_EXTRA_ATTRS = WINDOWS_TIME_TEXT_MODE
       ? ' placeholder="9:30 AM"'
