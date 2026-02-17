@@ -156,7 +156,7 @@
     .bulk-grid {
       display: grid;
       gap: 8px;
-      grid-template-columns: 160px 185px 110px 110px 110px 150px minmax(220px, 1fr) auto auto;
+      grid-template-columns: 150px 170px 100px 320px 320px 130px minmax(170px, 1fr) auto auto;
       align-items: end;
     }
 
@@ -187,6 +187,10 @@
     .time-input-wrap input {
       min-width: 0;
       flex: 1 1 auto;
+    }
+
+    .bulk-time-wrap input {
+      min-width: 220px;
     }
 
     .time-stepper {
@@ -694,14 +698,14 @@
       justify-content: space-between;
       gap: 8px;
       flex-wrap: wrap;
-      min-width: 2040px;
+      min-width: 1940px;
     }
 
     .detail-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 12px;
-      min-width: 2060px;
+      min-width: 1940px;
     }
 
     .detail-table th,
@@ -749,8 +753,8 @@
     }
 
     .day-note-input {
-      width: 60%;
-      min-width: 120px;
+      width: 100%;
+      min-width: 80px;
       max-width: 100%;
       resize: vertical;
       min-height: 28px;
@@ -2229,7 +2233,7 @@
                     "<th style=\"width:82px;\">Sc Comm</th>" +
                     "<th style=\"width:82px;\">SA Comm</th>" +
                     "<th style=\"width:82px;\">FP Comm</th>" +
-                    "<th style=\"width:180px;\">Notes</th>" +
+                    "<th style=\"width:110px;\">Notes</th>" +
                     "<th style=\"width:72px;\">Action</th>" +
                   "</tr>" +
                 "</thead>" +
