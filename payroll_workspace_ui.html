@@ -608,6 +608,15 @@
       background: var(--header);
     }
 
+    .sheet-wrap.detail-open .sheet-table thead th {
+      z-index: 1;
+    }
+
+    .sheet-wrap.detail-open .sheet-table th.sticky-left-1,
+    .sheet-wrap.detail-open .sheet-table th.sticky-left-2 {
+      z-index: 2;
+    }
+
     .toggle-btn {
       width: 30px;
       min-width: 30px;
@@ -686,6 +695,8 @@
       border-radius: 4px;
       background: #ffffff;
       overflow: auto;
+      position: relative;
+      z-index: 5;
     }
 
     .detail-head {
@@ -719,8 +730,9 @@
     .detail-table th {
       background: #dde9f5;
       color: #203b55;
-      position: static;
-      z-index: 1;
+      position: sticky;
+      top: 0;
+      z-index: 8;
       font-size: 11px;
       font-weight: 700;
     }
@@ -1321,6 +1333,7 @@
     const bulkSelectedNames = document.getElementById("bulkSelectedNames");
     const bulkClearSelectedBtn = document.getElementById("bulkClearSelectedBtn");
     const timeQuickMenu = document.getElementById("timeQuickMenu");
+    const sheetWrap = document.querySelector(".sheet-wrap");
 
     let employees = [];
     let nextEmployeeId = 1;
@@ -2254,6 +2267,15 @@
       updateSortHeaderState();
       refreshSelectedEmployeePanel();
       renderBulkSearchResults();
+      syncDetailHeaderPriority();
+    }
+
+    function syncDetailHeaderPriority() {
+      if (!sheetWrap) {
+        return;
+      }
+      const anyExpanded = employees.some((employee) => !!employee.expanded);
+      sheetWrap.classList.toggle("detail-open", anyExpanded);
     }
 
     function updateEmployeeSummaryCells(employeeId) {
@@ -2631,6 +2653,7 @@
       if (toggleButton) {
         toggleButton.textContent = employee.expanded ? "▾" : "▸";
       }
+      syncDetailHeaderPriority();
     }
 
     function createEmptyEmployee() {
