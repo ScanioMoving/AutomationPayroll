@@ -27,6 +27,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 from xml.etree import ElementTree as ET
 import zipfile
+from zoneinfo import ZoneInfo
 
 from fill_payroll_workbook_from_hours import fill_workbook, load_tips_csv, match_names
 from simplify_timecard_csv import flatten_timecard, write_flat_csv
@@ -62,6 +63,8 @@ DATA_DIR = resolve_data_dir()
 USERS_DIR = DATA_DIR / "users"
 DB_PATH = DATA_DIR / "payroll_web.db"
 WORKSPACE_UI_FILENAME = "payroll_workspace_ui.html"
+COMMISSIONS_UI_FILENAME = "commissions_report_ui.html"
+NYC_TZ = ZoneInfo("America/New_York")
 
 COMPANY_OPTIONS = [
     ("scanio_moving", "Scanio Moving"),
@@ -147,8 +150,8 @@ def format_us_date(value: date) -> str:
     return value.strftime("%m/%d/%Y")
 
 
-def load_workspace_ui_html() -> str:
-    candidate = APP_ROOT / WORKSPACE_UI_FILENAME
+def load_ui_html(filename: str, title: str, fallback_link: str, fallback_link_label: str) -> str:
+    candidate = APP_ROOT / filename
     if candidate.exists():
         try:
             return candidate.read_text(encoding="utf-8")
@@ -156,13 +159,55 @@ def load_workspace_ui_html() -> str:
             pass
     return (
         "<!doctype html><html><body>"
-        "<h1>Payroll Weekly Workspace</h1>"
+        f"<h1>{title}</h1>"
         "<p>UI file not found. Expected: "
         + str(candidate)
         + "</p>"
-        "<p>Open <a href='/converter'>/converter</a> for converter mode.</p>"
+        "<p>Open <a href='"
+        + fallback_link
+        + "'>"
+        + fallback_link_label
+        + "</a>.</p>"
         "</body></html>"
     )
+
+
+def load_workspace_ui_html() -> str:
+    return load_ui_html(
+        WORKSPACE_UI_FILENAME,
+        "Payroll Weekly Workspace",
+        "/converter",
+        "converter mode",
+    )
+
+
+def load_commissions_ui_html() -> str:
+    return load_ui_html(
+        COMMISSIONS_UI_FILENAME,
+        "Commissions Report",
+        "/workspace",
+        "payroll workspace",
+    )
+
+
+def nyc_today() -> date:
+    return datetime.now(NYC_TZ).date()
+
+
+def last_completed_payroll_week_range(reference: date | None = None) -> tuple[date, date]:
+    today = reference or nyc_today()
+    days_since_saturday = (today.weekday() - 5) % 7
+    current_week_start = today - timedelta(days=days_since_saturday)
+    last_week_start = current_week_start - timedelta(days=7)
+    return last_week_start, last_week_start + timedelta(days=6)
+
+
+def previous_calendar_month_range(reference: date | None = None) -> tuple[date, date]:
+    today = reference or nyc_today()
+    current_month_start = today.replace(day=1)
+    previous_month_end = current_month_start - timedelta(days=1)
+    previous_month_start = previous_month_end.replace(day=1)
+    return previous_month_start, previous_month_end
 
 
 def safe_filename(name: str, fallback: str) -> str:
@@ -1007,6 +1052,41 @@ def list_payroll_weeks(user_id: int, limit: int = 200) -> list[dict[str, Any]]:
     ]
 
 
+def list_payroll_weeks_in_range(user_id: int, start_date: date, end_date: date) -> list[dict[str, Any]]:
+    with db_conn() as con:
+        rows = con.execute(
+            """
+            SELECT id, week_start, week_end, pay_period, period_note, payload_json, created_at, updated_at
+            FROM payroll_weeks
+            WHERE user_id = ?
+              AND week_start <= ?
+              AND week_end >= ?
+            ORDER BY week_start ASC, updated_at ASC
+            """,
+            (user_id, start_date.isoformat(), end_date.isoformat()),
+        ).fetchall()
+
+    output: list[dict[str, Any]] = []
+    for row in rows:
+        try:
+            payload = json.loads(str(row["payload_json"] or "{}"))
+        except Exception:
+            payload = {}
+        output.append(
+            {
+                "id": int(row["id"]),
+                "week_start": str(row["week_start"]),
+                "week_end": str(row["week_end"]),
+                "pay_period": str(row["pay_period"]),
+                "period_note": str(row["period_note"] or ""),
+                "created_at": int(row["created_at"]),
+                "updated_at": int(row["updated_at"]),
+                "payload": payload,
+            }
+        )
+    return output
+
+
 def latest_payroll_week_payload(user_id: int) -> dict[str, Any] | None:
     with db_conn() as con:
         row = con.execute(
@@ -1132,6 +1212,89 @@ def delete_payroll_week(user_id: int, period_id: int) -> bool:
         con.execute("DELETE FROM payroll_weeks WHERE user_id = ? AND id = ?", (user_id, period_id))
         changed = int(con.execute("SELECT changes()").fetchone()[0])
     return changed > 0
+
+
+def summarize_commissions_for_range(
+    user_id: int,
+    start_date: date,
+    end_date: date,
+) -> dict[str, Any]:
+    weeks = list_payroll_weeks_in_range(user_id, start_date, end_date)
+    merged: dict[str, dict[str, Any]] = {}
+
+    for week in weeks:
+        payload = week.get("payload", {})
+        rows = payload.get("employees", []) if isinstance(payload, dict) else []
+        if not isinstance(rows, list):
+            continue
+        for item in rows:
+            if not isinstance(item, dict):
+                continue
+            name = normalize_spaces(str(item.get("name", "")))
+            if not name:
+                continue
+            key = name.lower()
+            payroll_company = normalize_spaces(str(item.get("payrollCompany", "")))
+            entry = merged.setdefault(
+                key,
+                {
+                    "name": name,
+                    "payroll_company": payroll_company,
+                    "commissions": [0.0, 0.0, 0.0],
+                },
+            )
+            if payroll_company:
+                entry["payroll_company"] = payroll_company
+
+            days = item.get("days", [])
+            if not isinstance(days, list):
+                continue
+            for day in days:
+                if not isinstance(day, dict):
+                    continue
+                commissions = day.get("commissions", [])
+                if not isinstance(commissions, list):
+                    continue
+                for idx in range(3):
+                    if idx < len(commissions):
+                        entry["commissions"][idx] += safe_float(commissions[idx], 0.0)
+
+    employees: list[dict[str, Any]] = []
+    total_commissions = 0.0
+    for entry in merged.values():
+        by_company = [round(float(value), 2) for value in entry["commissions"]]
+        commission_total = round(sum(by_company), 2)
+        if abs(commission_total) < 1e-9:
+            continue
+        total_commissions += commission_total
+        employees.append(
+            {
+                "name": entry["name"],
+                "payroll_company": entry["payroll_company"],
+                "scanio_commission": by_company[0],
+                "sea_and_air_commission": by_company[1],
+                "flat_price_commission": by_company[2],
+                "total_commission": commission_total,
+            }
+        )
+
+    employees.sort(key=lambda item: (-safe_float(item["total_commission"], 0.0), item["name"].lower()))
+    return {
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "weeks": [
+            {
+                "id": int(week["id"]),
+                "week_start": str(week["week_start"]),
+                "week_end": str(week["week_end"]),
+                "pay_period": str(week["pay_period"]),
+                "period_note": str(week["period_note"]),
+            }
+            for week in weeks
+        ],
+        "employees": employees,
+        "total_commissions": round(total_commissions, 2),
+    }
 
 
 def extract_source_names_from_batch(batch_csv: Path, exclude_weekly_overtime: bool, out_csv: Path) -> list[str]:
@@ -2068,6 +2231,13 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
                     return
                 html_response(self, load_workspace_ui_html())
                 return
+            if path == "/commissions-report":
+                user = auth_user_from_handler(self)
+                if user is None:
+                    redirect_response(self, "/login")
+                    return
+                html_response(self, load_commissions_ui_html())
+                return
             if path == "/converter":
                 user = auth_user_from_handler(self)
                 if user is None:
@@ -2125,6 +2295,28 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
                 except Exception:
                     limit = 200
                 json_response(self, {"ok": True, "periods": list_payroll_weeks(user.user_id, limit=limit)})
+                return
+            if path == "/api/commissions/report":
+                user = self.require_auth()
+                if user is None:
+                    return
+                query = parse_qs(parsed.query)
+                preset = normalize_spaces((query.get("preset") or [""])[0]).lower()
+                start_date = parse_iso_date((query.get("start") or [""])[0])
+                end_date = parse_iso_date((query.get("end") or [""])[0])
+
+                if preset == "last_month":
+                    start_date, end_date = previous_calendar_month_range()
+                elif preset == "last_week" or start_date is None or end_date is None:
+                    start_date, end_date = last_completed_payroll_week_range()
+
+                if start_date > end_date:
+                    start_date, end_date = end_date, start_date
+
+                summary = summarize_commissions_for_range(user.user_id, start_date, end_date)
+                summary["ok"] = True
+                summary["preset"] = preset or "last_week"
+                json_response(self, summary)
                 return
             workspace_match = re.fullmatch(r"/api/workspace/periods/(\d+)", path)
             if workspace_match:

@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Commission Reports</title>
+  <style>
+    :root {
+      --bg: #eef3f8;
+      --panel: #f9fbfd;
+      --panel-strong: #ffffff;
+      --line: #b7c8da;
+      --line-strong: #8ea8c0;
+      --ink: #16324f;
+      --muted: #506781;
+      --accent: #1f6c85;
+      --accent-dark: #174f62;
+      --accent-soft: #dbeaf2;
+      --success: #187e6f;
+      --warn: #b27b22;
+      --danger: #b94b45;
+      --shadow: 0 10px 28px rgba(22, 50, 79, 0.08);
+      --font: "Segoe UI", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top right, rgba(93, 148, 183, 0.14), transparent 28%),
+        linear-gradient(180deg, #f4f8fb 0%, var(--bg) 100%);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    .app {
+      min-height: 100vh;
+      padding: 18px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 14px;
+      backdrop-filter: blur(6px);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .title {
+      margin: 0 0 4px;
+      font-size: 34px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .top-actions,
+    .filter-actions,
+    .selection-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filters-grid {
+      display: grid;
+      grid-template-columns: 180px 180px auto;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field label,
+    .section-title,
+    .summary-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    input[type="date"],
+    input[type="text"] {
+      width: 100%;
+      min-height: 40px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    button,
+    .link-btn {
+      appearance: none;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: 10px 14px;
+      min-height: 40px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      text-decoration: none;
+      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+    }
+
+    button:hover,
+    .link-btn:hover {
+      transform: translateY(-1px);
+      background: var(--accent-dark);
+    }
+
+    button.secondary,
+    .link-btn.secondary {
+      background: #edf4f8;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    button.warning {
+      background: #f3ede1;
+      color: #6e4d14;
+      border-color: #d9c098;
+    }
+
+    button.success {
+      background: var(--success);
+    }
+
+    .chip-row,
+    .summary-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .chip-row {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 14px;
+    }
+
+    .chip,
+    .summary-card {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(222, 236, 246, 0.92), rgba(244, 249, 252, 0.96));
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .summary-grid {
+      grid-template-columns: 340px minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .selection-panel {
+      max-height: calc(100vh - 290px);
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.85);
+    }
+
+    .employee-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .employee-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(183, 200, 218, 0.65);
+      cursor: pointer;
+    }
+
+    .employee-row:nth-child(even) {
+      background: rgba(231, 239, 247, 0.6);
+    }
+
+    .employee-row:hover {
+      background: rgba(214, 228, 240, 0.82);
+    }
+
+    .employee-name {
+      font-weight: 700;
+    }
+
+    .employee-meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .employee-total {
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .hint,
+    .empty-state,
+    .weeks-list {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .weeks-list {
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    .report-shell {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .report-header {
+      padding: 18px 20px 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #f8fbfd 0%, #edf5fa 100%);
+    }
+
+    .report-title {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .report-subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 11px 12px;
+      border-bottom: 1px solid #d8e2ec;
+      text-align: left;
+      font-size: 14px;
+      vertical-align: top;
+    }
+
+    th {
+      background: #d8e6f2;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #f5f8fb;
+    }
+
+    .num {
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .report-footer {
+      display: flex;
+      justify-content: flex-end;
+      padding: 14px 20px 18px;
+      background: #fbfdff;
+    }
+
+    .report-total {
+      min-width: 240px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(180deg, #e6f0f8 0%, #f8fbfd 100%);
+    }
+
+    .report-total strong {
+      display: block;
+      font-size: 24px;
+      margin-top: 4px;
+    }
+
+    .empty-state {
+      padding: 26px 20px;
+    }
+
+    @media (max-width: 1100px) {
+      .topbar,
+      .summary-grid,
+      .filters-grid {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+
+      .selection-panel {
+        max-height: 320px;
+      }
+
+      .chip-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .screen-only {
+        display: none !important;
+      }
+
+      .app {
+        padding: 0;
+      }
+
+      .card,
+      .report-shell {
+        box-shadow: none;
+        border: none;
+        border-radius: 0;
+      }
+
+      .report-title {
+        font-size: 24px;
+      }
+
+      th,
+      td {
+        font-size: 12px;
+        padding: 8px 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card topbar screen-only">
+      <div>
+        <h1 class="title">Commission Reports</h1>
+        <p class="subtitle">Select a saved date range, keep only employees with commissions, and print a commissions-only PDF.</p>
+      </div>
+      <div class="top-actions">
+        <a class="link-btn secondary" href="/workspace">Back to Weekly Sheet</a>
+        <button id="printBtn" class="warning" type="button">Print Commissions PDF</button>
+        <button id="logoutBtn" class="secondary" type="button">Logout</button>
+      </div>
+    </div>
+
+    <div class="card screen-only">
+      <div class="filters-grid">
+        <div class="field">
+          <label for="startDateInput">Start Date</label>
+          <input id="startDateInput" type="date" />
+        </div>
+        <div class="field">
+          <label for="endDateInput">End Date</label>
+          <input id="endDateInput" type="date" />
+        </div>
+        <div class="filter-actions">
+          <button id="lastWeekBtn" type="button">Last Week</button>
+          <button id="lastMonthBtn" class="secondary" type="button">Last Month</button>
+          <button id="loadBtn" class="secondary" type="button">Load Range</button>
+        </div>
+      </div>
+      <div class="chip-row">
+        <div class="chip">
+          <div class="summary-label">Range</div>
+          <strong id="rangeChip">-</strong>
+        </div>
+        <div class="chip">
+          <div class="summary-label">Weeks Included</div>
+          <strong id="weeksChip">0</strong>
+        </div>
+        <div class="chip">
+          <div class="summary-label">Employees With Commissions</div>
+          <strong id="employeesChip">0</strong>
+        </div>
+        <div class="chip">
+          <div class="summary-label">Total Commissions</div>
+          <strong id="totalChip">$0.00</strong>
+        </div>
+      </div>
+      <div class="weeks-list" id="weeksList">No saved weeks loaded.</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="card screen-only">
+        <div class="selection-actions">
+          <div class="field" style="flex: 1 1 220px;">
+            <label for="employeeSearchInput">Employee Search</label>
+            <input id="employeeSearchInput" type="text" placeholder="Filter employees with commissions" />
+          </div>
+          <button id="selectAllBtn" class="secondary" type="button">Select All</button>
+          <button id="clearSelectionBtn" class="secondary" type="button">Clear</button>
+        </div>
+        <div class="hint" id="selectionHint" style="margin: 10px 0 12px;">Showing employees with commissions in the selected range.</div>
+        <div class="selection-panel">
+          <ul id="employeeList" class="employee-list"></ul>
+        </div>
+      </div>
+
+      <div class="card" id="reportCard">
+        <div class="report-shell">
+          <div class="report-header">
+            <h2 class="report-title">Commission Report</h2>
+            <p class="report-subtitle" id="reportSubtitle">No range selected.</p>
+          </div>
+          <div id="reportBody">
+            <div class="empty-state">Choose a range to load commissions.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const startDateInput = document.getElementById("startDateInput");
+    const endDateInput = document.getElementById("endDateInput");
+    const lastWeekBtn = document.getElementById("lastWeekBtn");
+    const lastMonthBtn = document.getElementById("lastMonthBtn");
+    const loadBtn = document.getElementById("loadBtn");
+    const printBtn = document.getElementById("printBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const rangeChip = document.getElementById("rangeChip");
+    const weeksChip = document.getElementById("weeksChip");
+    const employeesChip = document.getElementById("employeesChip");
+    const totalChip = document.getElementById("totalChip");
+    const weeksList = document.getElementById("weeksList");
+    const employeeSearchInput = document.getElementById("employeeSearchInput");
+    const employeeList = document.getElementById("employeeList");
+    const selectAllBtn = document.getElementById("selectAllBtn");
+    const clearSelectionBtn = document.getElementById("clearSelectionBtn");
+    const selectionHint = document.getElementById("selectionHint");
+    const reportSubtitle = document.getElementById("reportSubtitle");
+    const reportBody = document.getElementById("reportBody");
+
+    let reportRows = [];
+    let selectedEmployees = new Set();
+    let currentRangeLabel = "";
+
+    function safeNumber(value) {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    function formatMoney(value) {
+      return "$" + safeNumber(value).toFixed(2);
+    }
+
+    function formatIsoAsUs(value) {
+      const text = String(value || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+        return text;
+      }
+      const [year, month, day] = text.split("-");
+      return month + "/" + day + "/" + year;
+    }
+
+    function buildRangeLabel(startText, endText) {
+      return formatIsoAsUs(startText) + " - " + formatIsoAsUs(endText);
+    }
+
+    function employeeKey(row) {
+      return String(row.name || "").trim().toLowerCase();
+    }
+
+    function visibleRows() {
+      const search = String(employeeSearchInput.value || "").trim().toLowerCase();
+      if (!search) {
+        return reportRows.slice();
+      }
+      return reportRows.filter((row) => {
+        const haystack = [
+          String(row.name || ""),
+          String(row.payroll_company || "")
+        ].join(" ").toLowerCase();
+        return haystack.includes(search);
+      });
+    }
+
+    function selectedRows() {
+      return reportRows.filter((row) => selectedEmployees.has(employeeKey(row)));
+    }
+
+    function renderEmployeeList() {
+      const rows = visibleRows();
+      employeeList.innerHTML = "";
+
+      if (rows.length === 0) {
+        employeeList.innerHTML = '<li class="empty-state">No commission entries match this filter.</li>';
+        return;
+      }
+
+      rows.forEach((row) => {
+        const key = employeeKey(row);
+        const li = document.createElement("li");
+        li.className = "employee-row";
+        li.innerHTML =
+          '<input type="checkbox" ' + (selectedEmployees.has(key) ? "checked" : "") + ' aria-label="Select employee" />' +
+          '<div><div class="employee-name"></div><div class="employee-meta"></div></div>' +
+          '<div class="employee-total"></div>';
+        li.querySelector(".employee-name").textContent = row.name || "Unnamed Employee";
+        li.querySelector(".employee-meta").textContent = row.payroll_company || "Payroll company not set";
+        li.querySelector(".employee-total").textContent = formatMoney(row.total_commission);
+        li.addEventListener("click", (event) => {
+          const clickedCheckbox = event.target && event.target.tagName === "INPUT";
+          if (selectedEmployees.has(key)) {
+            selectedEmployees.delete(key);
+          } else {
+            selectedEmployees.add(key);
+          }
+          if (!clickedCheckbox) {
+            const checkbox = li.querySelector("input");
+            if (checkbox) {
+              checkbox.checked = selectedEmployees.has(key);
+            }
+          }
+          renderEmployeeList();
+          renderReport();
+        });
+        employeeList.appendChild(li);
+      });
+    }
+
+    function renderReport() {
+      const rows = selectedRows();
+      const selectedTotal = rows.reduce((sum, row) => sum + safeNumber(row.total_commission), 0);
+      selectionHint.textContent = rows.length + " selected of " + reportRows.length + " employees with commissions.";
+
+      reportSubtitle.textContent = currentRangeLabel
+        ? currentRangeLabel + " | " + rows.length + " selected employees"
+        : "No range selected.";
+
+      if (rows.length === 0) {
+        reportBody.innerHTML = '<div class="empty-state">No selected employees with commissions in this range.</div>';
+        return;
+      }
+
+      const table = document.createElement("table");
+      table.innerHTML =
+        "<thead><tr>" +
+          "<th>Employee Name</th>" +
+          "<th>Payroll Company</th>" +
+          '<th class="num">Scanio Comm</th>' +
+          '<th class="num">Sea &amp; Air Comm</th>' +
+          '<th class="num">Flat Price Comm</th>' +
+          '<th class="num">Total</th>' +
+        "</tr></thead>";
+      const tbody = document.createElement("tbody");
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td></td>" +
+          "<td></td>" +
+          '<td class="num"></td>' +
+          '<td class="num"></td>' +
+          '<td class="num"></td>' +
+          '<td class="num"></td>';
+        tr.children[0].textContent = row.name || "";
+        tr.children[1].textContent = row.payroll_company || "";
+        tr.children[2].textContent = formatMoney(row.scanio_commission);
+        tr.children[3].textContent = formatMoney(row.sea_and_air_commission);
+        tr.children[4].textContent = formatMoney(row.flat_price_commission);
+        tr.children[5].textContent = formatMoney(row.total_commission);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+
+      const wrapper = document.createElement("div");
+      wrapper.appendChild(table);
+
+      const footer = document.createElement("div");
+      footer.className = "report-footer";
+      footer.innerHTML =
+        '<div class="report-total">' +
+          '<div class="summary-label">Selected Total Commissions</div>' +
+          '<strong>' + formatMoney(selectedTotal) + '</strong>' +
+        '</div>';
+      wrapper.appendChild(footer);
+
+      reportBody.innerHTML = "";
+      reportBody.appendChild(wrapper);
+    }
+
+    function applySummary(summary) {
+      reportRows = Array.isArray(summary.employees) ? summary.employees.slice() : [];
+      selectedEmployees = new Set(reportRows.map((row) => employeeKey(row)));
+
+      startDateInput.value = String(summary.start_date || "");
+      endDateInput.value = String(summary.end_date || "");
+      currentRangeLabel = buildRangeLabel(summary.start_date, summary.end_date);
+      rangeChip.textContent = currentRangeLabel;
+      weeksChip.textContent = String((summary.weeks || []).length);
+      employeesChip.textContent = String(reportRows.length);
+      totalChip.textContent = formatMoney(summary.total_commissions);
+
+      const weeks = Array.isArray(summary.weeks) ? summary.weeks : [];
+      weeksList.textContent = weeks.length
+        ? "Saved weeks included: " + weeks.map((week) => buildRangeLabel(week.week_start, week.week_end)).join(", ")
+        : "No saved weeks fall inside this range.";
+
+      renderEmployeeList();
+      renderReport();
+    }
+
+    async function loadReport(query) {
+      const params = new URLSearchParams();
+      if (query && query.preset) {
+        params.set("preset", query.preset);
+      } else {
+        if (startDateInput.value) {
+          params.set("start", startDateInput.value);
+        }
+        if (endDateInput.value) {
+          params.set("end", endDateInput.value);
+        }
+      }
+      const response = await fetch("/api/commissions/report?" + params.toString());
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      if (!response.ok) {
+        reportBody.innerHTML = '<div class="empty-state">Failed to load commission data.</div>';
+        return;
+      }
+      const payload = await response.json();
+      applySummary(payload);
+    }
+
+    async function logout() {
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.location.href = "/login";
+    }
+
+    lastWeekBtn.addEventListener("click", () => loadReport({ preset: "last_week" }));
+    lastMonthBtn.addEventListener("click", () => loadReport({ preset: "last_month" }));
+    loadBtn.addEventListener("click", () => loadReport({}));
+    printBtn.addEventListener("click", () => window.print());
+    logoutBtn.addEventListener("click", logout);
+    employeeSearchInput.addEventListener("input", () => {
+      renderEmployeeList();
+    });
+    selectAllBtn.addEventListener("click", () => {
+      visibleRows().forEach((row) => selectedEmployees.add(employeeKey(row)));
+      renderEmployeeList();
+      renderReport();
+    });
+    clearSelectionBtn.addEventListener("click", () => {
+      visibleRows().forEach((row) => selectedEmployees.delete(employeeKey(row)));
+      renderEmployeeList();
+      renderReport();
+    });
+
+    loadReport({ preset: "last_week" });
+  </script>
+</body>
+</html>
