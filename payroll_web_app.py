@@ -1066,7 +1066,7 @@ def list_payroll_weeks_in_range(user_id: int, start_date: date, end_date: date) 
               AND week_end >= ?
             ORDER BY week_start ASC, updated_at ASC
             """,
-            (user_id, start_date.isoformat(), end_date.isoformat()),
+            (user_id, end_date.isoformat(), start_date.isoformat()),
         ).fetchall()
 
     output: list[dict[str, Any]] = []
@@ -1226,6 +1226,10 @@ def summarize_commissions_for_range(
     merged: dict[str, dict[str, Any]] = {}
 
     for week in weeks:
+        week_start = parse_iso_date(str(week.get("week_start", "")))
+        week_end = parse_iso_date(str(week.get("week_end", "")))
+        if week_start is None or week_end is None:
+            continue
         payload = week.get("payload", {})
         rows = payload.get("employees", []) if isinstance(payload, dict) else []
         if not isinstance(rows, list):
@@ -1253,8 +1257,11 @@ def summarize_commissions_for_range(
             row_has_day_commissions = False
             if not isinstance(days, list):
                 days = []
-            for day in days:
+            for day_index, day in enumerate(days):
                 if not isinstance(day, dict):
+                    continue
+                day_date = week_start + timedelta(days=day_index)
+                if day_date < start_date or day_date > end_date:
                     continue
                 commissions = day.get("commissions", [])
                 if not isinstance(commissions, list):
@@ -1268,6 +1275,8 @@ def summarize_commissions_for_range(
 
             # Backward compatibility: older saved payloads may only persist employee-level commission totals.
             if not row_has_day_commissions:
+                if start_date > week_start or end_date < week_end:
+                    continue
                 company_totals = item.get("commissionsByCompany", item.get("commissions_by_company", []))
                 if isinstance(company_totals, list):
                     for idx in range(3):
