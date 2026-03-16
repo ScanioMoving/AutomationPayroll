@@ -182,12 +182,7 @@ def load_workspace_ui_html() -> str:
 
 
 def load_commissions_ui_html() -> str:
-    return load_ui_html(
-        COMMISSIONS_UI_FILENAME,
-        "Commissions Report",
-        "/workspace",
-        "payroll workspace",
-    )
+    return COMMISSIONS_REPORT_PAGE
 
 
 def nyc_today() -> date:
@@ -1601,6 +1596,570 @@ LOGIN_PAGE = """<!doctype html>
 
     document.getElementById("loginBtn").addEventListener("click", login);
     document.getElementById("registerBtn").addEventListener("click", registerUser);
+  </script>
+</body>
+</html>
+"""
+
+
+COMMISSIONS_REPORT_PAGE = """<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Commission Reports</title>
+  <style>
+    :root {
+      --bg: #eef3f8;
+      --panel: #ffffff;
+      --line: #b7c8da;
+      --line-strong: #8ea8c0;
+      --text: #16324f;
+      --muted: #506781;
+      --accent: #1f6c85;
+      --accent-dark: #174f62;
+      --success: #187e6f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(93, 148, 183, 0.14), transparent 28%),
+        linear-gradient(180deg, #f4f8fb 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+    .app {
+      min-height: 100vh;
+      padding: 18px;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 10px 28px rgba(22, 50, 79, 0.08);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .topbar, .toolbar, .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .toolbar {
+      justify-content: flex-start;
+      margin-top: 12px;
+    }
+    h1, h2, p { margin: 0; }
+    h1 {
+      font-size: 34px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      margin-bottom: 4px;
+    }
+    .subtitle, .muted {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .filters {
+      display: grid;
+      grid-template-columns: 190px 190px 1fr;
+      gap: 14px;
+      align-items: end;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+    .field label, .summary-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    input, button, a.link-btn {
+      font: inherit;
+      border-radius: 10px;
+      min-height: 40px;
+      padding: 10px 12px;
+    }
+    input {
+      border: 1px solid var(--line-strong);
+      background: white;
+      color: var(--text);
+    }
+    button, a.link-btn {
+      appearance: none;
+      border: 1px solid transparent;
+      background: var(--accent);
+      color: white;
+      text-decoration: none;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    button:hover, a.link-btn:hover {
+      background: var(--accent-dark);
+    }
+    button.secondary, a.link-btn.secondary {
+      background: #edf4f8;
+      color: var(--text);
+      border-color: var(--line);
+    }
+    button.success {
+      background: var(--success);
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .summary-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: linear-gradient(180deg, rgba(222, 236, 246, 0.92), rgba(244, 249, 252, 0.96));
+    }
+    .summary-card strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 24px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 340px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .picker {
+      max-height: calc(100vh - 290px);
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.92);
+    }
+    .employee-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(183, 200, 218, 0.65);
+      cursor: pointer;
+    }
+    .employee-row:nth-child(even) {
+      background: rgba(231, 239, 247, 0.6);
+    }
+    .employee-row:hover {
+      background: rgba(214, 228, 240, 0.82);
+    }
+    .employee-name {
+      font-weight: 700;
+    }
+    .employee-meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .employee-total {
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .report-shell {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: white;
+    }
+    .report-head {
+      padding: 18px 20px 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #f8fbfd 0%, #edf5fa 100%);
+    }
+    .report-head h2 {
+      font-size: 28px;
+      line-height: 1.08;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      text-align: left;
+      padding: 11px 12px;
+      border-bottom: 1px solid #d8e2ec;
+      font-size: 14px;
+      vertical-align: top;
+    }
+    th {
+      background: #d8e6f2;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    tbody tr:nth-child(even) {
+      background: #f5f8fb;
+    }
+    .num {
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .report-total {
+      display: flex;
+      justify-content: flex-end;
+      padding: 14px 20px 18px;
+      background: #fbfdff;
+    }
+    .report-total-card {
+      min-width: 240px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: linear-gradient(180deg, #e6f0f8 0%, #f8fbfd 100%);
+    }
+    .report-total-card strong {
+      display: block;
+      font-size: 24px;
+      margin-top: 4px;
+    }
+    .empty {
+      padding: 26px 20px;
+      color: var(--muted);
+    }
+    .screen-only {}
+    @media (max-width: 1100px) {
+      .filters, .layout, .summary-grid {
+        grid-template-columns: 1fr;
+      }
+      .picker {
+        max-height: 320px;
+      }
+    }
+    @media print {
+      body {
+        background: white;
+      }
+      .screen-only {
+        display: none !important;
+      }
+      .app {
+        padding: 0;
+      }
+      .card, .report-shell {
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      th, td {
+        font-size: 12px;
+        padding: 8px 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card topbar screen-only">
+      <div>
+        <h1>Commission Reports</h1>
+        <p class="subtitle">Select a saved date range, keep only employees with commissions, and print a commissions-only PDF.</p>
+      </div>
+      <div class="actions">
+        <a class="link-btn secondary" href="/workspace">Back to Weekly Sheet</a>
+        <button id="printBtn" type="button">Print Commissions PDF</button>
+        <button id="logoutBtn" class="secondary" type="button">Logout</button>
+      </div>
+    </div>
+
+    <div class="card screen-only">
+      <div class="filters">
+        <div class="field">
+          <label for="startDateInput">Start Date</label>
+          <input id="startDateInput" type="date" />
+        </div>
+        <div class="field">
+          <label for="endDateInput">End Date</label>
+          <input id="endDateInput" type="date" />
+        </div>
+        <div>
+          <div class="toolbar">
+            <button id="lastWeekBtn" type="button">Last Week</button>
+            <button id="lastMonthBtn" class="secondary" type="button">Last Month</button>
+            <button id="loadBtn" class="secondary" type="button">Load Range</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-label">Range</div>
+          <strong id="rangeChip">-</strong>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Weeks Included</div>
+          <strong id="weeksChip">0</strong>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Employees With Commissions</div>
+          <strong id="employeesChip">0</strong>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Total Commissions</div>
+          <strong id="totalChip">$0.00</strong>
+        </div>
+      </div>
+      <div class="muted" id="weeksList" style="margin-top:12px;">No saved weeks loaded.</div>
+    </div>
+
+    <div class="layout">
+      <div class="card screen-only">
+        <div class="field" style="margin-bottom: 12px;">
+          <label for="employeeSearchInput">Employee Search</label>
+          <input id="employeeSearchInput" type="text" placeholder="Filter employees with commissions" />
+        </div>
+        <div class="toolbar" style="margin-top:0; margin-bottom:12px;">
+          <button id="selectAllBtn" class="secondary" type="button">Select All</button>
+          <button id="clearSelectionBtn" class="secondary" type="button">Clear</button>
+        </div>
+        <div class="muted" id="selectionHint" style="margin-bottom:12px;">Showing employees with commissions in the selected range.</div>
+        <div class="picker" id="employeeList"></div>
+      </div>
+
+      <div class="card">
+        <div class="report-shell">
+          <div class="report-head">
+            <h2>Commission Report</h2>
+            <p class="muted" id="reportSubtitle">No range selected.</p>
+          </div>
+          <div id="reportBody">
+            <div class="empty">Choose a range to load commissions.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const startDateInput = document.getElementById("startDateInput");
+    const endDateInput = document.getElementById("endDateInput");
+    const lastWeekBtn = document.getElementById("lastWeekBtn");
+    const lastMonthBtn = document.getElementById("lastMonthBtn");
+    const loadBtn = document.getElementById("loadBtn");
+    const printBtn = document.getElementById("printBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const rangeChip = document.getElementById("rangeChip");
+    const weeksChip = document.getElementById("weeksChip");
+    const employeesChip = document.getElementById("employeesChip");
+    const totalChip = document.getElementById("totalChip");
+    const weeksList = document.getElementById("weeksList");
+    const employeeSearchInput = document.getElementById("employeeSearchInput");
+    const employeeList = document.getElementById("employeeList");
+    const selectAllBtn = document.getElementById("selectAllBtn");
+    const clearSelectionBtn = document.getElementById("clearSelectionBtn");
+    const selectionHint = document.getElementById("selectionHint");
+    const reportSubtitle = document.getElementById("reportSubtitle");
+    const reportBody = document.getElementById("reportBody");
+
+    let reportRows = [];
+    let selectedEmployees = new Set();
+    let currentRangeLabel = "";
+
+    function safeNumber(value) {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    function formatMoney(value) {
+      return "$" + safeNumber(value).toFixed(2);
+    }
+
+    function formatIsoAsUs(value) {
+      const text = String(value || "");
+      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(text)) {
+        return text;
+      }
+      const parts = text.split("-");
+      return parts[1] + "/" + parts[2] + "/" + parts[0];
+    }
+
+    function buildRangeLabel(startText, endText) {
+      return formatIsoAsUs(startText) + " - " + formatIsoAsUs(endText);
+    }
+
+    function employeeKey(row) {
+      return String(row.name || "").trim().toLowerCase();
+    }
+
+    function visibleRows() {
+      const search = String(employeeSearchInput.value || "").trim().toLowerCase();
+      if (!search) {
+        return reportRows.slice();
+      }
+      return reportRows.filter((row) => {
+        const haystack = [String(row.name || ""), String(row.payroll_company || "")].join(" ").toLowerCase();
+        return haystack.includes(search);
+      });
+    }
+
+    function selectedRows() {
+      return reportRows.filter((row) => selectedEmployees.has(employeeKey(row)));
+    }
+
+    function renderEmployeeList() {
+      const rows = visibleRows();
+      if (!rows.length) {
+        employeeList.innerHTML = '<div class="empty">No commission entries match this filter.</div>';
+        return;
+      }
+      employeeList.innerHTML = rows.map((row) => {
+        const key = employeeKey(row);
+        return (
+          '<div class="employee-row" data-key="' + key + '">' +
+            '<input type="checkbox" ' + (selectedEmployees.has(key) ? "checked" : "") + ' />' +
+            '<div><div class="employee-name">' + escapeHtml(row.name || "Unnamed Employee") + '</div>' +
+            '<div class="employee-meta">' + escapeHtml(row.payroll_company || "Payroll company not set") + '</div></div>' +
+            '<div class="employee-total">' + formatMoney(row.total_commission) + '</div>' +
+          '</div>'
+        );
+      }).join("");
+
+      employeeList.querySelectorAll(".employee-row").forEach((node) => {
+        node.addEventListener("click", () => {
+          const key = node.getAttribute("data-key") || "";
+          if (!key) {
+            return;
+          }
+          if (selectedEmployees.has(key)) {
+            selectedEmployees.delete(key);
+          } else {
+            selectedEmployees.add(key);
+          }
+          renderEmployeeList();
+          renderReport();
+        });
+      });
+    }
+
+    function renderReport() {
+      const rows = selectedRows();
+      const selectedTotal = rows.reduce((sum, row) => sum + safeNumber(row.total_commission), 0);
+      selectionHint.textContent = rows.length + " selected of " + reportRows.length + " employees with commissions.";
+      reportSubtitle.textContent = currentRangeLabel
+        ? currentRangeLabel + " | " + rows.length + " selected employees"
+        : "No range selected.";
+
+      if (!rows.length) {
+        reportBody.innerHTML = '<div class="empty">No selected employees with commissions in this range.</div>';
+        return;
+      }
+
+      reportBody.innerHTML =
+        '<table><thead><tr>' +
+          '<th>Employee Name</th>' +
+          '<th>Payroll Company</th>' +
+          '<th class="num">Scanio Comm</th>' +
+          '<th class="num">Sea &amp; Air Comm</th>' +
+          '<th class="num">Flat Price Comm</th>' +
+          '<th class="num">Total</th>' +
+        '</tr></thead><tbody>' +
+        rows.map((row) => (
+          '<tr>' +
+            '<td>' + escapeHtml(row.name || "") + '</td>' +
+            '<td>' + escapeHtml(row.payroll_company || "") + '</td>' +
+            '<td class="num">' + formatMoney(row.scanio_commission) + '</td>' +
+            '<td class="num">' + formatMoney(row.sea_and_air_commission) + '</td>' +
+            '<td class="num">' + formatMoney(row.flat_price_commission) + '</td>' +
+            '<td class="num">' + formatMoney(row.total_commission) + '</td>' +
+          '</tr>'
+        )).join("") +
+        '</tbody></table>' +
+        '<div class="report-total"><div class="report-total-card"><div class="summary-label">Selected Total Commissions</div><strong>' +
+          formatMoney(selectedTotal) +
+        '</strong></div></div>';
+    }
+
+    function applySummary(summary) {
+      reportRows = Array.isArray(summary.employees) ? summary.employees.slice() : [];
+      selectedEmployees = new Set(reportRows.map((row) => employeeKey(row)));
+      startDateInput.value = String(summary.start_date || "");
+      endDateInput.value = String(summary.end_date || "");
+      currentRangeLabel = buildRangeLabel(summary.start_date, summary.end_date);
+      rangeChip.textContent = currentRangeLabel;
+      weeksChip.textContent = String((summary.weeks || []).length);
+      employeesChip.textContent = String(reportRows.length);
+      totalChip.textContent = formatMoney(summary.total_commissions);
+
+      const weeks = Array.isArray(summary.weeks) ? summary.weeks : [];
+      weeksList.textContent = weeks.length
+        ? "Saved weeks included: " + weeks.map((week) => buildRangeLabel(week.week_start, week.week_end)).join(", ")
+        : "No saved weeks fall inside this range.";
+
+      renderEmployeeList();
+      renderReport();
+    }
+
+    async function loadReport(query) {
+      const params = new URLSearchParams();
+      if (query && query.preset) {
+        params.set("preset", query.preset);
+      } else {
+        if (startDateInput.value) {
+          params.set("start", startDateInput.value);
+        }
+        if (endDateInput.value) {
+          params.set("end", endDateInput.value);
+        }
+      }
+      const response = await fetch("/api/commissions/report?" + params.toString());
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      if (!response.ok) {
+        reportBody.innerHTML = '<div class="empty">Failed to load commission data.</div>';
+        return;
+      }
+      const payload = await response.json();
+      applySummary(payload);
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    async function logout() {
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.location.href = "/login";
+    }
+
+    lastWeekBtn.addEventListener("click", () => loadReport({ preset: "last_week" }));
+    lastMonthBtn.addEventListener("click", () => loadReport({ preset: "last_month" }));
+    loadBtn.addEventListener("click", () => loadReport({}));
+    printBtn.addEventListener("click", () => window.print());
+    logoutBtn.addEventListener("click", logout);
+    employeeSearchInput.addEventListener("input", () => renderEmployeeList());
+    selectAllBtn.addEventListener("click", () => {
+      visibleRows().forEach((row) => selectedEmployees.add(employeeKey(row)));
+      renderEmployeeList();
+      renderReport();
+    });
+    clearSelectionBtn.addEventListener("click", () => {
+      visibleRows().forEach((row) => selectedEmployees.delete(employeeKey(row)));
+      renderEmployeeList();
+      renderReport();
+    });
+
+    loadReport({ preset: "last_week" });
   </script>
 </body>
 </html>
