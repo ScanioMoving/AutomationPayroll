@@ -1323,6 +1323,33 @@ def latest_saved_commissions_range(user_id: int) -> tuple[date, date] | None:
     return None
 
 
+def commissions_diagnostics(user: AuthUser) -> dict[str, Any]:
+    periods = list_payroll_weeks(user.user_id, limit=50)
+    week_summaries: list[dict[str, Any]] = []
+    for period in periods:
+        week_start = parse_iso_date(str(period.get("week_start", "")))
+        week_end = parse_iso_date(str(period.get("week_end", "")))
+        if week_start is None or week_end is None:
+            continue
+        summary = summarize_commissions_for_range(user.user_id, week_start, week_end)
+        week_summaries.append(
+            {
+                "id": int(period["id"]),
+                "week_start": str(period["week_start"]),
+                "week_end": str(period["week_end"]),
+                "employee_count": len(summary["employees"]),
+                "total_commissions": round(safe_float(summary["total_commissions"], 0.0), 2),
+            }
+        )
+    return {
+        "user_id": int(user.user_id),
+        "email": str(user.email),
+        "db_path": str(DB_PATH),
+        "saved_weeks_count": len(periods),
+        "weeks": week_summaries,
+    }
+
+
 def extract_source_names_from_batch(batch_csv: Path, exclude_weekly_overtime: bool, out_csv: Path) -> list[str]:
     include_weekly_overtime = not exclude_weekly_overtime
     totals = flatten_timecard(batch_csv, include_weekly_overtime=include_weekly_overtime)
@@ -1759,6 +1786,17 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
       margin-top: 5px;
       font-size: 24px;
     }
+    .debug-box {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(246, 250, 253, 0.95);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
     .layout {
       display: grid;
       grid-template-columns: 340px minmax(0, 1fr);
@@ -1946,6 +1984,7 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
         </div>
       </div>
       <div class="muted" id="weeksList" style="margin-top:12px;">No saved weeks loaded.</div>
+      <div class="debug-box" id="debugBox">Diagnostics will load with the report.</div>
     </div>
 
     <div class="layout">
@@ -1990,6 +2029,7 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
     const employeesChip = document.getElementById("employeesChip");
     const totalChip = document.getElementById("totalChip");
     const weeksList = document.getElementById("weeksList");
+    const debugBox = document.getElementById("debugBox");
     const employeeSearchInput = document.getElementById("employeeSearchInput");
     const employeeList = document.getElementById("employeeList");
     const selectAllBtn = document.getElementById("selectAllBtn");
@@ -2132,6 +2172,26 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
         ? "Saved weeks included: " + weeks.map((week) => buildRangeLabel(week.week_start, week.week_end)).join(", ")
         : "No saved weeks fall inside this range.";
 
+      const diagnostics = summary && typeof summary.diagnostics === "object" ? summary.diagnostics : null;
+      if (diagnostics) {
+        const weekLines = Array.isArray(diagnostics.weeks)
+          ? diagnostics.weeks.map((week) =>
+              buildRangeLabel(week.week_start, week.week_end) +
+              " | employees: " + String(week.employee_count || 0) +
+              " | total: " + formatMoney(week.total_commissions)
+            )
+          : [];
+        debugBox.textContent =
+          "User: " + String(diagnostics.email || "") +
+          " (id " + String(diagnostics.user_id || "") + ")\n" +
+          "DB: " + String(diagnostics.db_path || "") + "\n" +
+          "Saved weeks: " + String(diagnostics.saved_weeks_count || 0) + "\n" +
+          "Commission weeks:\n" +
+          (weekLines.length ? weekLines.join("\n") : "None");
+      } else {
+        debugBox.textContent = "No diagnostics returned.";
+      }
+
       renderEmployeeList();
       renderReport();
     }
@@ -2155,6 +2215,7 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
       }
       if (!response.ok) {
         reportBody.innerHTML = '<div class="empty">Failed to load commission data.</div>';
+        debugBox.textContent = "Report request failed with status " + response.status + ".";
         return;
       }
       const payload = await response.json();
@@ -2915,6 +2976,7 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
                 summary = summarize_commissions_for_range(user.user_id, start_date, end_date)
                 summary["ok"] = True
                 summary["preset"] = preset or "last_week"
+                summary["diagnostics"] = commissions_diagnostics(user)
                 json_response(self, summary)
                 return
             workspace_match = re.fullmatch(r"/api/workspace/periods/(\d+)", path)
