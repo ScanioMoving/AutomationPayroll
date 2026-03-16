@@ -1242,8 +1242,9 @@ def summarize_commissions_for_range(
                 entry["payroll_company"] = payroll_company
 
             days = item.get("days", [])
+            row_has_day_commissions = False
             if not isinstance(days, list):
-                continue
+                days = []
             for day in days:
                 if not isinstance(day, dict):
                     continue
@@ -1252,7 +1253,18 @@ def summarize_commissions_for_range(
                     continue
                 for idx in range(3):
                     if idx < len(commissions):
-                        entry["commissions"][idx] += safe_float(commissions[idx], 0.0)
+                        value = safe_float(commissions[idx], 0.0)
+                        entry["commissions"][idx] += value
+                        if abs(value) > 1e-9:
+                            row_has_day_commissions = True
+
+            # Backward compatibility: older saved payloads may only persist employee-level commission totals.
+            if not row_has_day_commissions:
+                company_totals = item.get("commissionsByCompany", item.get("commissions_by_company", []))
+                if isinstance(company_totals, list):
+                    for idx in range(3):
+                        if idx < len(company_totals):
+                            entry["commissions"][idx] += safe_float(company_totals[idx], 0.0)
 
     employees: list[dict[str, Any]] = []
     total_commissions = 0.0
