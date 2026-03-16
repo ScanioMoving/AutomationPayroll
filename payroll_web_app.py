@@ -1292,6 +1292,25 @@ def summarize_commissions_for_range(
     }
 
 
+def latest_saved_commissions_range(user_id: int) -> tuple[date, date] | None:
+    weeks = list_payroll_weeks(user_id, limit=200)
+    for week in weeks:
+        week_start = parse_iso_date(str(week.get("week_start", "")))
+        week_end = parse_iso_date(str(week.get("week_end", "")))
+        if week_start is None or week_end is None:
+            continue
+        summary = summarize_commissions_for_range(user_id, week_start, week_end)
+        employees = summary.get("employees", [])
+        if isinstance(employees, list) and employees:
+            return week_start, week_end
+    if weeks:
+        week_start = parse_iso_date(str(weeks[0].get("week_start", "")))
+        week_end = parse_iso_date(str(weeks[0].get("week_end", "")))
+        if week_start is not None and week_end is not None:
+            return week_start, week_end
+    return None
+
+
 def extract_source_names_from_batch(batch_csv: Path, exclude_weekly_overtime: bool, out_csv: Path) -> list[str]:
     include_weekly_overtime = not exclude_weekly_overtime
     totals = flatten_timecard(batch_csv, include_weekly_overtime=include_weekly_overtime)
@@ -1888,6 +1907,7 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
         </div>
         <div>
           <div class="toolbar">
+            <button id="latestSavedBtn" class="success" type="button">Latest Saved</button>
             <button id="lastWeekBtn" type="button">Last Week</button>
             <button id="lastMonthBtn" class="secondary" type="button">Last Month</button>
             <button id="loadBtn" class="secondary" type="button">Load Range</button>
@@ -1947,6 +1967,7 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
   <script>
     const startDateInput = document.getElementById("startDateInput");
     const endDateInput = document.getElementById("endDateInput");
+    const latestSavedBtn = document.getElementById("latestSavedBtn");
     const lastWeekBtn = document.getElementById("lastWeekBtn");
     const lastMonthBtn = document.getElementById("lastMonthBtn");
     const loadBtn = document.getElementById("loadBtn");
@@ -2142,6 +2163,7 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
       window.location.href = "/login";
     }
 
+    latestSavedBtn.addEventListener("click", () => loadReport({ preset: "latest_saved" }));
     lastWeekBtn.addEventListener("click", () => loadReport({ preset: "last_week" }));
     lastMonthBtn.addEventListener("click", () => loadReport({ preset: "last_month" }));
     loadBtn.addEventListener("click", () => loadReport({}));
@@ -2159,7 +2181,7 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
       renderReport();
     });
 
-    loadReport({ preset: "last_week" });
+    loadReport({ preset: "latest_saved" });
   </script>
 </body>
 </html>
@@ -2864,7 +2886,13 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
                 start_date = parse_iso_date((query.get("start") or [""])[0])
                 end_date = parse_iso_date((query.get("end") or [""])[0])
 
-                if preset == "last_month":
+                if preset == "latest_saved":
+                    latest_range = latest_saved_commissions_range(user.user_id)
+                    if latest_range is not None:
+                        start_date, end_date = latest_range
+                    else:
+                        start_date, end_date = last_completed_payroll_week_range()
+                elif preset == "last_month":
                     start_date, end_date = previous_calendar_month_range()
                 elif preset == "last_week" or start_date is None or end_date is None:
                     start_date, end_date = last_completed_payroll_week_range()
