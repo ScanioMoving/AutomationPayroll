@@ -2062,6 +2062,29 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
       statusBox.style.color = isError ? "#b42318" : "#506781";
     }
 
+    async function loadAuthStatus() {
+      try {
+        const response = await fetch("/api/me", {
+          credentials: "same-origin"
+        });
+        if (response.status === 401) {
+          setStatus("Not authenticated for API requests.", true);
+          return;
+        }
+        if (!response.ok) {
+          setStatus("Unable to verify authenticated user.", true);
+          return;
+        }
+        const payload = await response.json();
+        if (payload && payload.ok) {
+          setStatus("Authenticated as " + String(payload.email || "unknown user") + ".", false);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setStatus("Auth check failed: " + message, true);
+      }
+    }
+
     function safeNumber(value) {
       const num = Number(value);
       return Number.isFinite(num) ? num : 0;
@@ -2222,7 +2245,9 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
 
     async function loadSavedWeeks() {
       try {
-        const response = await fetch("/api/workspace/periods");
+        const response = await fetch("/api/workspace/periods", {
+          credentials: "same-origin"
+        });
         if (response.status === 401) {
           window.location.href = "/login";
           return;
@@ -2262,7 +2287,9 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
           }
         }
         setStatus("Loading commissions report...", false);
-        const response = await fetch("/api/commissions/report?" + params.toString());
+        const response = await fetch("/api/commissions/report?" + params.toString(), {
+          credentials: "same-origin"
+        });
         if (response.status === 401) {
           window.location.href = "/login";
           return;
@@ -2300,7 +2327,10 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
     }
 
     async function logout() {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin"
+      });
       window.location.href = "/login";
     }
 
@@ -2330,6 +2360,7 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
       renderReport();
     });
 
+    loadAuthStatus();
     loadSavedWeeks();
     loadReport({ preset: "latest_saved" });
   </script>
