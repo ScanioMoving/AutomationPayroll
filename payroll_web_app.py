@@ -1797,6 +1797,13 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
       line-height: 1.5;
       white-space: pre-wrap;
     }
+    .status-box {
+      margin-top: 12px;
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
     .layout {
       display: grid;
       grid-template-columns: 340px minmax(0, 1fr);
@@ -1957,6 +1964,10 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
         </div>
         <div>
           <div class="toolbar">
+            <select id="savedWeekSelect" class="secondary" style="min-width: 220px;">
+              <option value="">Saved Weeks</option>
+            </select>
+            <button id="loadSavedBtn" class="secondary" type="button">Load Saved Week</button>
             <button id="latestSavedBtn" class="success" type="button">Latest Saved</button>
             <button id="lastWeekBtn" type="button">Last Week</button>
             <button id="lastMonthBtn" class="secondary" type="button">Last Month</button>
@@ -1984,6 +1995,7 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
         </div>
       </div>
       <div class="muted" id="weeksList" style="margin-top:12px;">No saved weeks loaded.</div>
+      <div class="status-box" id="statusBox"></div>
       <div class="debug-box" id="debugBox">Diagnostics will load with the report.</div>
     </div>
 
@@ -2018,6 +2030,8 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
   <script>
     const startDateInput = document.getElementById("startDateInput");
     const endDateInput = document.getElementById("endDateInput");
+    const savedWeekSelect = document.getElementById("savedWeekSelect");
+    const loadSavedBtn = document.getElementById("loadSavedBtn");
     const latestSavedBtn = document.getElementById("latestSavedBtn");
     const lastWeekBtn = document.getElementById("lastWeekBtn");
     const lastMonthBtn = document.getElementById("lastMonthBtn");
@@ -2029,6 +2043,7 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
     const employeesChip = document.getElementById("employeesChip");
     const totalChip = document.getElementById("totalChip");
     const weeksList = document.getElementById("weeksList");
+    const statusBox = document.getElementById("statusBox");
     const debugBox = document.getElementById("debugBox");
     const employeeSearchInput = document.getElementById("employeeSearchInput");
     const employeeList = document.getElementById("employeeList");
@@ -2041,6 +2056,11 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
     let reportRows = [];
     let selectedEmployees = new Set();
     let currentRangeLabel = "";
+
+    function setStatus(text, isError) {
+      statusBox.textContent = text || "";
+      statusBox.style.color = isError ? "#b42318" : "#506781";
+    }
 
     function safeNumber(value) {
       const num = Number(value);
@@ -2166,6 +2186,10 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
       weeksChip.textContent = String((summary.weeks || []).length);
       employeesChip.textContent = String(reportRows.length);
       totalChip.textContent = formatMoney(summary.total_commissions);
+      setStatus(
+        "Loaded " + reportRows.length + " employees with commissions for " + currentRangeLabel + ".",
+        false
+      );
 
       const weeks = Array.isArray(summary.weeks) ? summary.weeks : [];
       weeksList.textContent = weeks.length
@@ -2196,30 +2220,74 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
       renderReport();
     }
 
+    async function loadSavedWeeks() {
+      try {
+        const response = await fetch("/api/workspace/periods");
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok) {
+          setStatus("Failed to load saved weeks.", true);
+          return;
+        }
+        const payload = await response.json();
+        const periods = Array.isArray(payload.periods) ? payload.periods : [];
+        savedWeekSelect.innerHTML = '<option value="">Saved Weeks</option>';
+        periods.forEach((period) => {
+          const option = document.createElement("option");
+          option.value = String(period.id || "");
+          option.textContent = buildRangeLabel(period.week_start, period.week_end);
+          savedWeekSelect.appendChild(option);
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setStatus("Failed to load saved weeks: " + message, true);
+      }
+    }
+
     async function loadReport(query) {
-      const params = new URLSearchParams();
-      if (query && query.preset) {
-        params.set("preset", query.preset);
-      } else {
-        if (startDateInput.value) {
-          params.set("start", startDateInput.value);
+      try {
+        const params = new URLSearchParams();
+        if (query && query.periodId) {
+          params.set("period_id", String(query.periodId));
+        } else if (query && query.preset) {
+          params.set("preset", query.preset);
+        } else {
+          if (startDateInput.value) {
+            params.set("start", startDateInput.value);
+          }
+          if (endDateInput.value) {
+            params.set("end", endDateInput.value);
+          }
         }
-        if (endDateInput.value) {
-          params.set("end", endDateInput.value);
+        setStatus("Loading commissions report...", false);
+        const response = await fetch("/api/commissions/report?" + params.toString());
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
         }
+        if (!response.ok) {
+          let message = "Failed to load commission data.";
+          try {
+            const payload = await response.json();
+            if (payload && payload.error) {
+              message = String(payload.error);
+            }
+          } catch {}
+          reportBody.innerHTML = '<div class="empty">' + escapeHtml(message) + '</div>';
+          debugBox.textContent = "Report request failed with status " + response.status + ".";
+          setStatus(message, true);
+          return;
+        }
+        const payload = await response.json();
+        applySummary(payload);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        reportBody.innerHTML = '<div class="empty">' + escapeHtml(message) + '</div>';
+        debugBox.textContent = "Request error: " + message;
+        setStatus("Request failed: " + message, true);
       }
-      const response = await fetch("/api/commissions/report?" + params.toString());
-      if (response.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
-      if (!response.ok) {
-        reportBody.innerHTML = '<div class="empty">Failed to load commission data.</div>';
-        debugBox.textContent = "Report request failed with status " + response.status + ".";
-        return;
-      }
-      const payload = await response.json();
-      applySummary(payload);
     }
 
     function escapeHtml(value) {
@@ -2236,6 +2304,14 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
       window.location.href = "/login";
     }
 
+    loadSavedBtn.addEventListener("click", () => {
+      const periodId = String(savedWeekSelect.value || "").trim();
+      if (!periodId) {
+        setStatus("Select a saved week first.", true);
+        return;
+      }
+      loadReport({ periodId });
+    });
     latestSavedBtn.addEventListener("click", () => loadReport({ preset: "latest_saved" }));
     lastWeekBtn.addEventListener("click", () => loadReport({ preset: "last_week" }));
     lastMonthBtn.addEventListener("click", () => loadReport({ preset: "last_month" }));
@@ -2254,6 +2330,7 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
       renderReport();
     });
 
+    loadSavedWeeks();
     loadReport({ preset: "latest_saved" });
   </script>
 </body>
@@ -2956,10 +3033,26 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
                     return
                 query = parse_qs(parsed.query)
                 preset = normalize_spaces((query.get("preset") or [""])[0]).lower()
+                period_id_raw = normalize_spaces((query.get("period_id") or [""])[0])
                 start_date = parse_iso_date((query.get("start") or [""])[0])
                 end_date = parse_iso_date((query.get("end") or [""])[0])
 
-                if preset == "latest_saved":
+                if period_id_raw:
+                    try:
+                        period_id = int(period_id_raw)
+                    except Exception:
+                        json_response(self, {"ok": False, "error": "Invalid saved week id"}, status=400)
+                        return
+                    period = get_payroll_week(user.user_id, period_id)
+                    if period is None:
+                        json_response(self, {"ok": False, "error": "Saved week not found"}, status=404)
+                        return
+                    start_date = parse_iso_date(str(period.get("week_start", "")))
+                    end_date = parse_iso_date(str(period.get("week_end", "")))
+                    if start_date is None or end_date is None:
+                        json_response(self, {"ok": False, "error": "Saved week has invalid dates"}, status=400)
+                        return
+                elif preset == "latest_saved":
                     latest_range = latest_saved_commissions_range(user.user_id)
                     if latest_range is not None:
                         start_date, end_date = latest_range
