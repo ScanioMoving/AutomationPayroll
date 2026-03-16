@@ -181,8 +181,16 @@ def load_workspace_ui_html() -> str:
     )
 
 
-def load_commissions_ui_html() -> str:
-    return COMMISSIONS_REPORT_PAGE
+def load_commissions_ui_html(user: AuthUser) -> str:
+    bootstrap = {
+        "email": user.email,
+        "user_id": user.user_id,
+        "periods": list_payroll_weeks(user.user_id, limit=200),
+    }
+    return COMMISSIONS_REPORT_PAGE.replace(
+        "__COMMISSIONS_BOOTSTRAP__",
+        json.dumps(bootstrap, separators=(",", ":")),
+    )
 
 
 def nyc_today() -> date:
@@ -2028,6 +2036,7 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
   </div>
 
   <script>
+    const bootstrap = __COMMISSIONS_BOOTSTRAP__;
     const startDateInput = document.getElementById("startDateInput");
     const endDateInput = document.getElementById("endDateInput");
     const savedWeekSelect = document.getElementById("savedWeekSelect");
@@ -2063,6 +2072,10 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
     }
 
     async function loadAuthStatus() {
+      if (bootstrap && bootstrap.email) {
+        setStatus("Authenticated as " + String(bootstrap.email) + ".", false);
+        return;
+      }
       try {
         const response = await fetch("/api/me", {
           credentials: "same-origin"
@@ -2230,11 +2243,11 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
           : [];
         debugBox.textContent =
           "User: " + String(diagnostics.email || "") +
-          " (id " + String(diagnostics.user_id || "") + ")\n" +
-          "DB: " + String(diagnostics.db_path || "") + "\n" +
-          "Saved weeks: " + String(diagnostics.saved_weeks_count || 0) + "\n" +
-          "Commission weeks:\n" +
-          (weekLines.length ? weekLines.join("\n") : "None");
+          " (id " + String(diagnostics.user_id || "") + ")\\n" +
+          "DB: " + String(diagnostics.db_path || "") + "\\n" +
+          "Saved weeks: " + String(diagnostics.saved_weeks_count || 0) + "\\n" +
+          "Commission weeks:\\n" +
+          (weekLines.length ? weekLines.join("\\n") : "None");
       } else {
         debugBox.textContent = "No diagnostics returned.";
       }
@@ -2244,6 +2257,18 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
     }
 
     async function loadSavedWeeks() {
+      const bootPeriods = bootstrap && Array.isArray(bootstrap.periods) ? bootstrap.periods : [];
+      if (bootPeriods.length) {
+        savedWeekSelect.innerHTML = '<option value="">Saved Weeks</option>';
+        bootPeriods.forEach((period) => {
+          const option = document.createElement("option");
+          option.value = String(period.id || "");
+          option.textContent = buildRangeLabel(period.week_start, period.week_end);
+          savedWeekSelect.appendChild(option);
+        });
+        setStatus("Loaded " + bootPeriods.length + " saved weeks from the authenticated session.", false);
+        return;
+      }
       try {
         const response = await fetch("/api/workspace/periods", {
           credentials: "same-origin"
@@ -2998,7 +3023,7 @@ class PayrollWebRequestHandler(BaseHTTPRequestHandler):
                 if user is None:
                     redirect_response(self, "/login")
                     return
-                html_response(self, load_commissions_ui_html())
+                html_response(self, load_commissions_ui_html(user))
                 return
             if path == "/converter":
                 user = auth_user_from_handler(self)
