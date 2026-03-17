@@ -1248,6 +1248,7 @@ def summarize_commissions_for_range(
                     "name": name,
                     "payroll_company": payroll_company,
                     "commissions": [0.0, 0.0, 0.0],
+                    "date_breakdown": {},
                 },
             )
             if payroll_company:
@@ -1272,6 +1273,9 @@ def summarize_commissions_for_range(
                         entry["commissions"][idx] += value
                         if abs(value) > 1e-9:
                             row_has_day_commissions = True
+                            day_key = day_date.isoformat()
+                            daily_entry = entry["date_breakdown"].setdefault(day_key, [0.0, 0.0, 0.0])
+                            daily_entry[idx] += value
 
             # Backward compatibility: older saved payloads may only persist employee-level commission totals.
             if not row_has_day_commissions:
@@ -1299,6 +1303,17 @@ def summarize_commissions_for_range(
                 "sea_and_air_commission": by_company[1],
                 "flat_price_commission": by_company[2],
                 "total_commission": commission_total,
+                "date_breakdown": [
+                    {
+                        "date": date_key,
+                        "scanio_commission": round(float(values[0]), 2),
+                        "sea_and_air_commission": round(float(values[1]), 2),
+                        "flat_price_commission": round(float(values[2]), 2),
+                        "total_commission": round(float(values[0] + values[1] + values[2]), 2),
+                    }
+                    for date_key, values in sorted(entry["date_breakdown"].items())
+                    if abs(values[0]) > 1e-9 or abs(values[1]) > 1e-9 or abs(values[2]) > 1e-9
+                ],
             }
         )
 
@@ -1897,6 +1912,19 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
     tbody tr:nth-child(even) {
       background: #f5f8fb;
     }
+    tr.employee-summary-row td {
+      font-weight: 700;
+      background: #f4f8fb;
+    }
+    tr.employee-date-row td {
+      background: #ffffff;
+      font-size: 13px;
+    }
+    td.date-detail-label {
+      padding-left: 28px;
+      color: var(--muted);
+      font-weight: 600;
+    }
     .num {
       text-align: right;
       white-space: nowrap;
@@ -2205,16 +2233,30 @@ COMMISSIONS_REPORT_PAGE = """<!doctype html>
           '<th class="num">Flat Price Comm</th>' +
           '<th class="num">Total</th>' +
         '</tr></thead><tbody>' +
-        rows.map((row) => (
-          '<tr>' +
-            '<td>' + escapeHtml(row.name || "") + '</td>' +
-            '<td>' + escapeHtml(row.payroll_company || "") + '</td>' +
-            '<td class="num">' + formatMoney(row.scanio_commission) + '</td>' +
-            '<td class="num">' + formatMoney(row.sea_and_air_commission) + '</td>' +
-            '<td class="num">' + formatMoney(row.flat_price_commission) + '</td>' +
-            '<td class="num">' + formatMoney(row.total_commission) + '</td>' +
-          '</tr>'
-        )).join("") +
+        rows.map((row) => {
+          const details = Array.isArray(row.date_breakdown) ? row.date_breakdown : [];
+          const detailRows = details.map((detail) => (
+            '<tr class="employee-date-row">' +
+              '<td class="date-detail-label">' + escapeHtml(formatIsoAsUs(detail.date)) + '</td>' +
+              '<td>Commission Date</td>' +
+              '<td class="num">' + formatMoney(detail.scanio_commission) + '</td>' +
+              '<td class="num">' + formatMoney(detail.sea_and_air_commission) + '</td>' +
+              '<td class="num">' + formatMoney(detail.flat_price_commission) + '</td>' +
+              '<td class="num">' + formatMoney(detail.total_commission) + '</td>' +
+            '</tr>'
+          )).join("");
+          return (
+            '<tr class="employee-summary-row">' +
+              '<td>' + escapeHtml(row.name || "") + '</td>' +
+              '<td>' + escapeHtml(row.payroll_company || "") + '</td>' +
+              '<td class="num">' + formatMoney(row.scanio_commission) + '</td>' +
+              '<td class="num">' + formatMoney(row.sea_and_air_commission) + '</td>' +
+              '<td class="num">' + formatMoney(row.flat_price_commission) + '</td>' +
+              '<td class="num">' + formatMoney(row.total_commission) + '</td>' +
+            '</tr>' +
+            detailRows
+          );
+        }).join("") +
         '</tbody></table>' +
         '<div class="report-total"><div class="report-total-card"><div class="summary-label">Selected Total Commissions</div><strong>' +
           formatMoney(selectedTotal) +
