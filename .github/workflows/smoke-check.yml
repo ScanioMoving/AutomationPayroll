@@ -24,3 +24,6 @@ jobs:
             fill_payroll_workbook_from_hours.py \
             simplify_timecard_csv.py \
             scripts/export_payroll_period.py
+
+      - name: Excel export regression tests
+        run: python -B -m unittest discover -s tests -v

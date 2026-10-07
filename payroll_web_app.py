@@ -29,7 +29,12 @@ from xml.etree import ElementTree as ET
 import zipfile
 from zoneinfo import ZoneInfo
 
-from fill_payroll_workbook_from_hours import fill_workbook, load_tips_csv, match_names
+from fill_payroll_workbook_from_hours import (
+    COMPANY_BURDEN_MULTIPLIER,
+    fill_workbook,
+    load_tips_csv,
+    match_names,
+)
 from simplify_timecard_csv import flatten_timecard, write_flat_csv
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -73,12 +78,7 @@ COMPANY_OPTIONS = [
     ("flat_price", "Flat Price"),
 ]
 
-DEFAULT_BURDEN_BY_COMPANY = {
-    "scanio_moving": 1.18,
-    "scanio_storage": 1.24,
-    "sea_and_air_intl": 1.18,
-    "flat_price": 1.18,
-}
+DEFAULT_BURDEN_BY_COMPANY = COMPANY_BURDEN_MULTIPLIER
 
 TEMPLATE_COMPANY_ROW_SLOTS = {
     "scanio_moving": list(range(5, 26)),

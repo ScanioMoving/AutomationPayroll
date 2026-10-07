@@ -65,10 +65,10 @@ COMPANY_ROW_SLOTS = {
 }
 
 COMPANY_BURDEN_MULTIPLIER = {
-    "scanio_moving": 1.18,
-    "scanio_storage": 1.24,
-    "sea_and_air_intl": 1.18,
-    "flat_price": 1.18,
+    "scanio_moving": 1.20,
+    "scanio_storage": 1.22,
+    "sea_and_air_intl": 1.16,
+    "flat_price": 1.17,
 }
 
 def normalize_spaces(value: str) -> str:
@@ -782,6 +782,35 @@ def refresh_company_summary_formulas(
     return reimbursement_row
 
 
+def apply_company_burden_multipliers(
+    sheet_data: ET.Element, company_slots: dict[str, list[int]]
+) -> None:
+    # Update legacy templates without rebuilding their formulas or shared groups.
+    legacy_factor = re.compile(r"(?<=[*/])\s*1\.(?:18|24)(?:0*)(?![\d.])")
+    for company, slots in company_slots.items():
+        if not slots:
+            continue
+        amount_row = max(slots) + 3
+        row = sheet_data.find(f"a:row[@r='{amount_row}']", NS)
+        if row is None:
+            continue
+        cells = get_row_cells(row)
+        factor = format_decimal_for_excel(COMPANY_BURDEN_MULTIPLIER[company])
+        for column in ("G", "H", "I", "J", "K", "M", "O", "Q"):
+            cell = cells.get(column)
+            if cell is None:
+                continue
+            formula = cell.find("a:f", NS)
+            if formula is None or not formula.text:
+                continue
+            updated = legacy_factor.sub(factor, formula.text)
+            if updated != formula.text:
+                formula.text = updated
+                cached_value = cell.find("a:v", NS)
+                if cached_value is not None:
+                    cell.remove(cached_value)
+
+
 def set_employee_row_formulas(sheet_data: ET.Element, row_number: int) -> None:
     formula_by_column = {
         "D": f"SUM(K{row_number}:O{row_number})",
@@ -834,6 +863,7 @@ def build_employee_rows_from_roster(
     reimbursement_row = 101
     if has_overflow:
         reimbursement_row = refresh_company_summary_formulas(sheet_data, company_slots)
+    apply_company_burden_multipliers(sheet_data, company_slots)
 
     employee_rows: list[dict[str, Any]] = []
     fill_columns = ["H", "I", "J", "K", "M", "O"]
@@ -1204,6 +1234,8 @@ def fill_workbook(
                             "home_company": current_home_company,
                         }
                     )
+
+            apply_company_burden_multipliers(sheet_data, COMPANY_ROW_SLOTS)
 
         workbook_names = [entry["workbook_name"] for entry in employee_rows]
         source_to_workbook, unmatched_sources = match_names(workbook_names, source_names)
